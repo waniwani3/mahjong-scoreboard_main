@@ -613,18 +613,62 @@ input:focus, select:focus {
     gap: 0.75rem;
 }
 
+/* NEW: Badge styles */
+.badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid;
+    white-space: nowrap;
+}
+
+.elo-badge {
+    background-color: #3a3a3a;
+    border-color: #555555;
+    color: #f0f0f0;
+}
+
+.elo-badge-3-star { background-color: #4a148c; border-color: #7b1fa2; color: #e1bee7; }
+.elo-badge-4-star, .elo-badge-5-star { background-color: #1a237e; border-color: #283593; color: #c5cae9; }
+.elo-badge-6-diamond, .elo-badge-7-diamond { background-color: #004d40; border-color: #00695c; color: #b2dfdb; }
+.elo-badge-8-crown, .elo-badge-9-crown { background-color: #bf360c; border-color: #d84315; color: #ffccbc; }
+.elo-badge-9-crown-fire { box-shadow: 0 0 5px #ffab00; }
+
+.title-badge {
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.65rem;
+}
+.title-badge-king { background-color: #ffd700; color: #433400; border-color: #c9a92c;}
+.title-badge-stable { background-color: #2979ff; color: #e3f2fd; border-color: #4c8bf5;}
+.title-badge-rising { background-color: #00e676; color: #003d1e; border-color: #32b568;}
+.title-badge-slump { background-color: #757575; color: #f5f5f5; border-color: #8d8d8d;}
+.title-badge-fire { background-color: #ff3d00; color: #fbe9e7; border-color: #ff6433;}
+.title-badge-normal, .title-badge-newbie { background-color: #4f5d75; color: #e0e6e3; border-color: #6a768c;}
+
 .leaderboard-card {
     background: rgba(0, 0, 0, 0.25);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: var(--border-radius-md);
     padding: 1.25rem;
     display: grid;
+    grid-template-areas: 
+        "rank details score"
+        "rank stats score"
+        "dist dist dist";
     grid-template-columns: 40px 1fr auto;
     align-items: center;
-    gap: 1rem;
+    gap: 0.25rem 1rem;
     position: relative;
     overflow: hidden;
 }
+.rank-badge { grid-area: rank; }
+.player-details { grid-area: details; }
+.player-total-score { grid-area: score; align-self: center; }
+.player-stats-row { grid-area: stats; }
+.distribution-container { grid-area: dist; padding-top: 0.75rem; }
+
 
 .leaderboard-card::before {
     content: '';
@@ -659,21 +703,30 @@ input:focus, select:focus {
 
 .player-details {
     display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
 .player-stats-row {
     display: flex;
-    gap: 1rem;
+    flex-wrap: wrap;
+    gap: 0.2rem 0.75rem; /* row and column gap */
     font-size: 0.8rem;
     color: #8c9c96;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
 }
 
 .player-total-score {
     font-family: var(--font-heading);
     font-weight: 800;
     font-size: 1.5rem;
+    text-align: right;
 }
 
 /* Distribution Bar for Stats (1st to 4th place) */
@@ -684,7 +737,6 @@ input:focus, select:focus {
     overflow: hidden;
     background: rgba(255, 255, 255, 0.05);
     width: 100%;
-    max-width: 300px;
     margin-top: 0.5rem;
 }
 
@@ -716,6 +768,61 @@ input:focus, select:focus {
     height: 8px;
     border-radius: 50%;
 }
+
+/* Chart Panel Styles */
+#chart-panel {
+    display: none; /* Hidden by default, shown via JS */
+}
+.chart-tabs {
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.chart-tab-content {
+    display: none;
+}
+.chart-tab-content.active {
+    display: block;
+    animation: fadeIn 0.4s ease-out;
+}
+
+/* Share Card Styles (for image generation) */
+#share-card-content {
+    background: var(--bg-tertiary);
+    color: #e0e6e3;
+    padding: 1.5rem;
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--glass-border);
+    box-shadow: none;
+}
+#share-card-content h3 {
+    text-align: center;
+    color: var(--accent-gold);
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+#share-card-content .leaderboard-card {
+    background: var(--bg-secondary);
+    grid-template-areas: "rank details score" "dist dist dist";
+    grid-template-rows: auto 1fr;
+}
+#share-card-content .player-stats-row {
+    display: none;
+}
+#share-card-content .distribution-container {
+    padding-top: 0.5rem;
+}
+#share-card-footer {
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: #8c9c96;
+    font-family: var(--font-heading);
+    font-weight: 700;
+}
+
 
 /* Export Panel */
 .export-preview {

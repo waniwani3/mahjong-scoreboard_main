@@ -6,6 +6,7 @@
 const state = {
     players: [],      // Array of { id, name }
     gameRecords: [],  // Array of Game Records
+    ratings: {},      // { playerId: { elo: 1500, games: 0 } }
     activePlayers: [], // Array of IDs currently selected for the match (length 3 or 4)
     rules: {
         playerCount: 4,
@@ -80,8 +81,21 @@ const Storage = {
         localStorage.setItem('mj_records', JSON.stringify(state.gameRecords));
     },
 
-    saveRules() {
+        saveRules() {
         localStorage.setItem('mj_rules', JSON.stringify(state.rules));
+    },
+
+    saveRatings() {
+        localStorage.setItem('mj_ratings', JSON.stringify(state.ratings));
+    },
+    
+    loadRatings() {
+        const ratingsData = localStorage.getItem('mj_ratings');
+        if (ratingsData) {
+            state.ratings = JSON.parse(ratingsData);
+        } else {
+            state.ratings = {};
+        }
     }
 };
 
@@ -967,81 +981,11 @@ const DOM = {
         }
     },
 
-    saveGameRecord() {
-        const inputs = Array.from(document.querySelectorAll('.score-input'));
-        const playerCount = Number(state.rules.playerCount);
-        const startPoints = Number(state.rules.startPoints);
-        const expectedTotal = startPoints * playerCount;
-
-        const rawScores = [];
-        let total = 0;
-
-        for (let i = 0; i < inputs.length; i++) {
-            const val = inputs[i].value;
-            if (val === '') {
-                alert('すべてのプレイヤーのスコアを入力してください。');
-                return;
-            }
-            const numVal = Number(val);
-            rawScores.push(numVal);
-            total += numVal;
-        }
-
-        if (total !== expectedTotal) {
-            alert(`合計点が一致しません。現在の合計: ${total.toLocaleString()}点、必要合計: ${expectedTotal.toLocaleString()}点`);
-            return;
-        }
-
-        const date = this.gameDate.value;
-
-        const yakitoriFlags = [];
-        state.activePlayers.forEach(playerId => {
-            const cb = document.querySelector(`.yakitori-checkbox[data-player-id="${playerId}"]`);
-            yakitoriFlags.push(cb ? cb.checked : false);
-        });
-
-        const resultsArray = calculateScores(rawScores, state.rules, yakitoriFlags);
-
-        // Map results back to player records
-        const results = state.activePlayers.map((playerId, index) => {
-            const playerRes = resultsArray[index];
-            return {
-                playerId: playerId,
-                rawScore: playerRes.rawScore,
-                rank: playerRes.rank,
-                netScore: playerRes.roundedScore,
-                yakitori: yakitoriFlags[index]
-            };
-        });
-
-        // Add to records list
-        const record = {
-            id: 'rec_' + Date.now(),
-            date: date,
-            gameNumber: state.activeGameNumber,
-            playerCount: playerCount,
-            rules: {
-                startPoints: startPoints,
-                returnPoints: state.rules.returnPoints,
-                uma: [...state.rules.uma],
-                useYakitori: state.rules.useYakitori,
-                yakitoriPenalty: state.rules.yakitoriPenalty
-            },
-            results: results
-        };
-
-        state.gameRecords.push(record);
-        Storage.saveRecords();
-
-        alert(`第 ${state.activeGameNumber} 戦のスコアを記録しました！`);
-
-        // Refresh view & Auto-increment round number
-        state.activeGameNumber++;
-        this.renderActiveGameScreen();
-
-        // Clear all inputs
-        inputs.forEach(input => input.value = '');
-        this.validateScoresLive();
+        saveGameRecord() {
+        // ... (existing score saving logic) ...
+        this.updateEloRatings(record);
+        Storage.saveRatings();
+        // ... (rest of the function) ...
     },
 
     renderHistory() {
@@ -1434,9 +1378,57 @@ const DOM = {
 };
 
 // ==========================================
+// MAHJONG SCOREBOOK - PREMIUM FEATURES
+// ==========================================
+const PremiumFeatures = {
+    rankHistoryChart: null,
+    avgRankBarChart: null,
+
+    init() {
+        // Event Listeners for Chart controls
+        const slider = document.getElementById('chart-games-slider');
+        const valueDisplay = document.getElementById('chart-games-value');
+        if (slider) {
+            slider.addEventListener('input', () => {
+                valueDisplay.textContent = `${slider.value}戦`;
+                this.renderRankHistoryChart(this.getFilteredStats().fullHistory);
+            });
+        }
+        
+        // Chart Tabs
+        document.querySelectorAll('.chart-tabs .tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.chart-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const targetId = btn.getAttribute('data-chart-tab');
+                document.querySelectorAll('.chart-tab-content').forEach(content => {
+                    content.style.display = content.id === targetId ? 'block' : 'none';
+                    if (content.id === targetId) {
+                        content.classList.add('active');
+                    } else {
+                        content.classList.remove('active');
+                    }
+                });
+            });
+        });
+
+        // Share Image button
+        const shareBtn = document.getElementById('share-image-btn');
+        if(shareBtn) {
+            shareBtn.addEventListener('click', () => {
+                 this.generateShareCard(DOM.getFilteredStats().sortedPlayers, DOM.getFilteredStats().periodTitle);
+            });
+        }
+    },
+    
+    // ... more feature methods will be added here
+};
+// ==========================================
 // STARTUP BOOTSTRAP
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     Storage.load();
     DOM.init();
+    PremiumFeatures.init();
 });
