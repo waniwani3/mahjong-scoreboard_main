@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>麻雀スコアボード & 成績管理</title>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Header / Top Navigation (Desktop) -->
+    <header>
+        <div class="logo">
+            <div class="logo-icon"><i class="fa-solid fa-dice"></i></div>
+            <div class="logo-text">MAHJONG SCOREBOARD</div>
+        </div>
+        <nav class="tab-navigation">
+            <button class="tab-btn active" data-tab="setup"><i class="fa-solid fa-sliders"></i> 設定</button>
+            <button class="tab-btn" data-tab="game"><i class="fa-solid fa-pen-to-square"></i> スコア入力</button>
+            <button class="tab-btn" data-tab="history"><i class="fa-solid fa-history"></i> 対局履歴</button>
+            <button class="tab-btn" data-tab="stats"><i class="fa-solid fa-chart-line"></i> 成績統計</button>
+        </nav>
+    </header>
+
+    <!-- Main Content Container -->
+    <main>
+
+        <!-- 1. SETUP VIEW -->
+        <section id="setup" class="view-panel active">
+            <div class="panel">
+                <h2><i class="fa-solid fa-gear text-gold"></i> 対局ルール設定</h2>
+                <br>
+                <div class="settings-grid">
+                    <div class="form-group">
+                        <label for="rule-type">対局モード</label>
+                        <select id="rule-type">
+                            <option value="4" selected>四人打ち (4人)</option>
+                            <option value="3">三人打ち (3人)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="start-points">持ち点 (点)</label>
+                        <input type="number" id="start-points" value="25000" step="1000">
+                        <div class="btn-grid">
+                            <button type="button" class="preset-btn active" data-target="start-points" data-val="25000">25,000</button>
+                            <button type="button" class="preset-btn" data-target="start-points" data-val="30000">30,000</button>
+                            <button type="button" class="preset-btn" data-target="start-points" data-val="35000">35,000</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="return-points">返し点 / 基準点 (点)</label>
+                        <input type="number" id="return-points" value="30000" step="1000">
+                        <div class="btn-grid">
+                            <button type="button" class="preset-btn active" data-target="return-points" data-val="30000">30,000</button>
+                            <button type="button" class="preset-btn" data-target="return-points" data-val="35000">35,000</button>
+                            <button type="button" class="preset-btn" data-target="return-points" data-val="40000">40,000</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-grid" style="margin-top: 1rem;">
+                    <div class="form-group">
+                        <label>順位ウマ (1位 / 2位 / 3位 / 4位)</label>
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <input type="number" id="uma-1" value="10" placeholder="1位" style="text-align: center;">
+                            <input type="number" id="uma-2" value="5" placeholder="2位" style="text-align: center;">
+                            <input type="number" id="uma-3" value="-5" placeholder="3位" style="text-align: center;">
+                            <input type="number" id="uma-4" value="-10" placeholder="4位" style="text-align: center;" class="four-player-only">
+                        </div>
+                        <div class="btn-grid" id="uma-presets">
+                            <!-- Populated dynamically based on playerCount -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rounding-rule">端数処理（丸めルール）</label>
+                        <select id="rounding-rule">
+                            <option value="none">小数点そのまま保持 (100点＝0.1pt)</option>
+                            <option value="round" selected>四捨五入 (五入)</option>
+                            <option value="goju-chuni">五捨六入 (500点切り捨て、600点切り上げ)</option>
+                            <option value="truncate">切り捨て (常に1,000点単位に丸め)</option>
+                            <option value="ceil">切り上げ (常に1,000点単位に丸め)</option>
+                            <option value="rank-ceil-floor">1・2位切り上げ、3・4位(※3人打ちは3位)切り捨て</option>
+                            <option value="rank-floor-ceil">3・4位(※3人打ちは3位)切り上げ、1・2位切り捨て</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0.5rem;">
+                            <input type="checkbox" id="use-yakitori" style="width: auto; margin: 0;">
+                            <span>焼き鳥ルールを適用する</span>
+                        </label>
+                        <div id="yakitori-points-group" style="display: none; align-items: center; gap: 0.5rem;">
+                            <span style="font-size: 0.85rem; color: #8c9c96;">ペナルティ:</span>
+                            <input type="number" id="yakitori-penalty" value="10" min="1" max="100" style="padding: 0.4rem 0.8rem; width: 80px; text-align: center;">
+                            <span style="font-size: 0.85rem; color: #8c9c96;">pt/人</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Player Management Panel -->
+            <div class="panel">
+                <h2><i class="fa-solid fa-users text-gold"></i> プレイヤー登録・選択</h2>
+                <p style="font-size: 0.85rem; color: #8c9c96; margin: 0.5rem 0 1rem 0;">
+                    対局に参加するプレイヤーをチェックしてください。対局モードに合わせた人数（3人または4人）を選択する必要があります。
+                </p>
+                
+                <div class="form-group" style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="new-player-name" placeholder="新しいプレイヤー名を入力..." maxlength="10">
+                    <button class="btn btn-primary" id="add-player-btn" style="width: auto; padding: 0.75rem 1.5rem;"><i class="fa-solid fa-user-plus"></i> 追加</button>
+                </div>
+
+                <div class="roster-container" id="player-roster">
+                    <!-- Loaded dynamically from localStorage -->
+                </div>
+
+                <div id="selection-summary" style="font-weight: 700; color: var(--accent-gold); margin-bottom: 1rem;">
+                    選択中: 0 / 4 名
+                </div>
+
+                <button class="btn btn-primary" id="start-session-btn" disabled>
+                    <i class="fa-solid fa-play"></i> 対局を開始する
+                </button>
+            </div>
+        </section>
+
+        <!-- 2. ACTIVE GAME ENTRY VIEW -->
+        <section id="game" class="view-panel">
+            <div class="panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem;">
+                    <h2 id="active-game-title">対局スコア入力 (第1戦)</h2>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <label for="game-date" style="margin: 0; white-space: nowrap;">日付:</label>
+                        <input type="date" id="game-date" style="padding: 0.4rem 0.8rem; width: auto; font-size: 0.9rem;">
+                    </div>
+                </div>
+
+                <div class="match-layout">
+                    <!-- Left: Entry Inputs -->
+                    <div>
+                        <div id="score-entries-container">
+                            <!-- Player input cards populated dynamically -->
+                        </div>
+
+                        <!-- Auto-fill & Action buttons -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem;">
+                            <button type="button" class="btn btn-secondary" id="autofill-btn">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> 最後の1人を自動計算
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="clear-scores-btn">
+                                <i class="fa-solid fa-rotate-left"></i> 入力クリア
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Right: Virtual Keypad & Live Validation -->
+                    <div>
+                        <!-- Validation bar -->
+                        <div class="validator-bar invalid" id="validator-msg">
+                            <span>合計点: 0 / 100,000 点</span>
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+
+                        <!-- Virtual Numeric Keypad -->
+                        <div class="panel" style="padding: 1rem; margin-bottom: 0;">
+                            <h3 style="font-size: 0.9rem; color: var(--accent-gold); margin-bottom: 0.75rem; text-align: center;">
+                                モバイル用テンキー
+                            </h3>
+                            <div class="keypad-container">
+                                <button type="button" class="keypad-btn" data-key="1">1</button>
+                                <button type="button" class="keypad-btn" data-key="2">2</button>
+                                <button type="button" class="keypad-btn" data-key="3">3</button>
+                                <button type="button" class="keypad-btn" data-key="4">4</button>
+                                <button type="button" class="keypad-btn" data-key="5">5</button>
+                                <button type="button" class="keypad-btn" data-key="6">6</button>
+                                <button type="button" class="keypad-btn" data-key="7">7</button>
+                                <button type="button" class="keypad-btn" data-key="8">8</button>
+                                <button type="button" class="keypad-btn" data-key="9">9</button>
+                                <button type="button" class="keypad-btn" data-key="-">- (マイナス)</button>
+                                <button type="button" class="keypad-btn" data-key="0">0</button>
+                                <button type="button" class="keypad-btn" data-key="00">00</button>
+                                <button type="button" class="keypad-btn action" data-key="back"><i class="fa-solid fa-backspace"></i></button>
+                                <button type="button" class="keypad-btn action" data-key="clear">C</button>
+                                <button type="button" class="keypad-btn action" data-key="next">次へ</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <button class="btn btn-primary" id="save-round-btn">
+                        <i class="fa-solid fa-circle-check"></i> このスコアを記録する
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. HISTORY VIEW -->
+        <section id="history" class="view-panel">
+            <div class="panel">
+                <h2><i class="fa-solid fa-history text-gold"></i> 対局履歴・ログ</h2>
+                <br>
+                
+                <!-- History Filters -->
+                <div class="history-filter-panel">
+                    <select id="filter-year">
+                        <option value="all">すべての年</option>
+                    </select>
+                    <select id="filter-month">
+                        <option value="all">すべての月</option>
+                    </select>
+                    <button class="btn btn-secondary" id="clear-history-btn" style="width: auto; padding: 0.6rem 1rem;">
+                        <i class="fa-solid fa-trash"></i> 全履歴消去
+                    </button>
+                </div>
+
+                <!-- History Records Container -->
+                <div id="history-list-container">
+                    <!-- Populated dynamically -->
+                    <div style="text-align: center; color: #8c9c96; padding: 2rem 0;">
+                        <i class="fa-solid fa-folder-open" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                        <p>対局データがありません。「設定」からプレイヤーを選んでスコアを入力してください。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. STATS VIEW -->
+        <section id="stats" class="view-panel">
+            <!-- Summary Stats Card -->
+            <div class="panel">
+                <h2><i class="fa-solid fa-chart-line text-gold"></i> 成績統計・リーダーボード</h2>
+                <br>
+                
+                <!-- Period Selector -->
+                <div class="history-filter-panel">
+                    <select id="stats-period">
+                        <option value="all" selected>通算成績</option>
+                        <option value="year">今年度成績</option>
+                        <option value="month">今月度成績</option>
+                        <option value="today">本日成績</option>
+                    </select>
+                </div>
+
+                <!-- Leaderboard Grid -->
+                <div class="leaderboard-grid" id="leaderboard-container">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Share & Export Module -->
+            <div class="panel">
+                <h3><i class="fa-solid fa-share-nodes text-gold"></i> 結果のシェア・コピー</h3>
+                <br>
+                <p style="font-size: 0.85rem; color: #8c9c96; margin-bottom: 1rem;">
+                    現在の成績や指定の期間結果をテキスト形式に書き出して、LINEやSNSへ共有できます。
+                </p>
+                <div class="export-preview" id="export-text-area">
+                    <!-- Plain text report generated here -->
+                </div>
+                <button class="btn btn-primary" id="copy-report-btn">
+                    <i class="fa-solid fa-copy"></i> レポートをクリップボードにコピー
+                </button>
+                <!-- Export / Import JSON buttons -->
+                <button class="btn btn-secondary" id="export-json-btn" style="margin-left:0.5rem;">
+                    <i class="fa-solid fa-download"></i> データをエクスポート
+                </button>
+                <button class="btn btn-secondary" id="import-json-btn" style="margin-left:0.5rem;">
+                    <i class="fa-solid fa-upload"></i> データをインポート
+                </button>
+                <input type="file" id="import-json-input" accept="application/json" style="display:none;" />
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar (Mobile) -->
+    <nav class="mobile-nav">
+        <button class="mobile-nav-btn active" data-tab="setup">
+            <i class="fa-solid fa-sliders"></i>
+            <span>設定</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="game">
+            <i class="fa-solid fa-pen-to-square"></i>
+            <span>スコア入力</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="history">
+            <i class="fa-solid fa-history"></i>
+            <span>履歴</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="stats">
+            <i class="fa-solid fa-chart-line"></i>
+            <span>成績</span>
+        </button>
+    </nav>
+
+    <script src="app.js"></script>
+</body>
+</html>
