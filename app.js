@@ -1486,6 +1486,7 @@ const DOM = {
                 <span>1位率: <strong style="color:var(--color-rank-1)">${r1Percent.toFixed(1)}%</strong></span>
                 <span>ラス率: <strong style="color:var(--accent-red)">${r4Percent.toFixed(1)}%</strong></span>
                 <span>焼き鳥: <strong>${stats.yakitoriCount || 0}</strong> 回</span>
+                ${ratingInfo ? `<span>Elo: <strong style="color:var(--accent-gold)">${ratingInfo.elo}</strong></span>` : ''}
             `;
 
             // Visual bar showing ratios of 1st, 2nd, 3rd, 4th place
