@@ -1391,7 +1391,8 @@ const DOM = {
                 gamesCount: 0,
                 rankSum: 0,
                 ranks: { 1: 0, 2: 0, 3: 0, 4: 0 },
-                yakitoriCount: 0
+                yakitoriCount: 0,
+                tobiCount: 0
             };
         });
 
@@ -1407,7 +1408,8 @@ const DOM = {
                         gamesCount: 0,
                         rankSum: 0,
                         ranks: { 1: 0, 2: 0, 3: 0, 4: 0 },
-                        yakitoriCount: 0
+                        yakitoriCount: 0,
+                        tobiCount: 0
                     };
                 }
 
@@ -1420,6 +1422,9 @@ const DOM = {
                 }
                 if (res.yakitori) {
                     stats.yakitoriCount++;
+                }
+                if (res.rawScore < 0) {
+                    stats.tobiCount++;
                 }
             });
         });
@@ -1519,14 +1524,18 @@ const DOM = {
             nameRow.appendChild(titleBadge);
 
             const yakitoriRate = stats.yakitoriCount ? ((stats.yakitoriCount / stats.gamesCount) * 100).toFixed(1) : '0.0';
+            const tobiRate = stats.tobiCount ? ((stats.tobiCount / stats.gamesCount) * 100).toFixed(1) : '0.0';
             const statsRow = document.createElement('div');
             statsRow.className = 'player-stats-row';
             statsRow.innerHTML = `
                 <span>対局数: <strong>${stats.gamesCount}</strong> 半荘</span>
                 <span>平均順位: <strong>${avgRank}</strong> 位</span>
                 <span>1位率: <strong style="color:var(--color-rank-1)">${r1Percent.toFixed(1)}%</strong></span>
+                <span>2位率: <strong style="color:var(--color-rank-2)">${r2Percent.toFixed(1)}%</strong></span>
+                <span>3位率: <strong style="color:var(--color-rank-3)">${r3Percent.toFixed(1)}%</strong></span>
                 <span>ラス率: <strong style="color:var(--accent-red)">${r4Percent.toFixed(1)}%</strong></span>
-                <span>焼き鳥: <strong>${stats.yakitoriCount || 0}</strong> 回</span>
+                <span>焼き鳥率: <strong>${yakitoriRate}%</strong> (<strong>${stats.yakitoriCount || 0}</strong>回)</span>
+                <span>飛び率: <strong>${tobiRate}%</strong> (<strong>${stats.tobiCount || 0}</strong>回)</span>
                 ${ratingInfo ? `<span>Elo: <strong style="color:var(--accent-gold)">${state.isPremiumUnlocked ? ratingInfo.elo : '🔒'}</strong></span>` : ''}
             `;
 
@@ -1576,7 +1585,7 @@ const DOM = {
     // ==========================================
     initPremium() {
         const PREMIUM_HASH = "01ddac116b660a924b4808dad77e15c8e34d302629a3a29b93fbe7f87c9e4011"; // SHA-256 for "mj-premium-2026"
-        const NOTE_ARTICLE_URL = "https://note.com/";
+        const NOTE_ARTICLE_URL = "https://note.com/_waniwani3/n/nbb6c554f7ff0";
 
         // Helper to hash password
         const sha256 = async (message) => {
