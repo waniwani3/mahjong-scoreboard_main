@@ -1531,11 +1531,11 @@ const DOM = {
                 <span>対局数: <strong>${stats.gamesCount}</strong> 半荘</span>
                 <span>平均順位: <strong>${avgRank}</strong> 位</span>
                 <span>1位率: <strong style="color:var(--color-rank-1)">${r1Percent.toFixed(1)}%</strong></span>
-                <span>2位率: <strong style="color:var(--color-rank-2)">${r2Percent.toFixed(1)}%</strong></span>
-                <span>3位率: <strong style="color:var(--color-rank-3)">${r3Percent.toFixed(1)}%</strong></span>
+                <span>2位率: <strong style="color:var(--color-rank-2)">${state.isPremiumUnlocked ? r2Percent.toFixed(1) + '%' : '🔒'}</strong></span>
+                <span>3位率: <strong style="color:var(--color-rank-3)">${state.isPremiumUnlocked ? r3Percent.toFixed(1) + '%' : '🔒'}</strong></span>
                 <span>ラス率: <strong style="color:var(--accent-red)">${r4Percent.toFixed(1)}%</strong></span>
-                <span>焼き鳥率: <strong>${yakitoriRate}%</strong> (<strong>${stats.yakitoriCount || 0}</strong>回)</span>
-                <span>飛び率: <strong>${tobiRate}%</strong> (<strong>${stats.tobiCount || 0}</strong>回)</span>
+                <span>焼き鳥率: <strong>${state.isPremiumUnlocked ? yakitoriRate + '%' : '🔒'}</strong> ${state.isPremiumUnlocked ? `(<strong>${stats.yakitoriCount || 0}</strong>回)` : ''}</span>
+                <span>飛び率: <strong>${state.isPremiumUnlocked ? tobiRate + '%' : '🔒'}</strong> ${state.isPremiumUnlocked ? `(<strong>${stats.tobiCount || 0}</strong>回)` : ''}</span>
                 ${ratingInfo ? `<span>Elo: <strong style="color:var(--accent-gold)">${state.isPremiumUnlocked ? ratingInfo.elo : '🔒'}</strong></span>` : ''}
             `;
 
