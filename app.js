@@ -18,7 +18,8 @@ const state = {
         yakitoriPenalty: 10
     },
     activeGameNumber: 1,
-    currentFocusedInputId: null
+    currentFocusedInputId: null,
+    isPremiumUnlocked: false // Premium Lock State
 };
 
 // Preset Constants for Uma
@@ -72,6 +73,9 @@ const Storage = {
             // ratingsも初期化時に読み込む
             this.loadRatings();
 
+            // プレミアム有効化状態の読み込み
+            state.isPremiumUnlocked = localStorage.getItem('mj_premium_unlocked') === 'true';
+
         } catch (e) {
             console.error('LocalStorage load failed, resetting state:', e);
         }
@@ -85,7 +89,7 @@ const Storage = {
         localStorage.setItem('mj_records', JSON.stringify(state.gameRecords));
     },
 
-        saveRules() {
+    saveRules() {
         localStorage.setItem('mj_rules', JSON.stringify(state.rules));
     },
 
@@ -100,6 +104,10 @@ const Storage = {
         } else {
             state.ratings = {};
         }
+    },
+
+    savePremium() {
+        localStorage.setItem('mj_premium_unlocked', state.isPremiumUnlocked ? 'true' : 'false');
     }
 };
 
@@ -317,6 +325,9 @@ const DOM = {
         this.updateUmaPresets();
         this.renderHistory();
         this.renderStats();
+
+        // プレミアム機能の初期化
+        this.initPremium();
 
         // Set default date to today
         const today = new Date().toISOString().split('T')[0];
@@ -1463,18 +1474,48 @@ const DOM = {
             nameSpan.style.cssText = 'font-weight:700; font-size:1.1rem;';
             nameSpan.textContent = stats.name;
             nameRow.appendChild(nameSpan);
+            
             // 段位バッジ（Eloデータある場合のみ）
             if (ratingInfo) {
                 const danBadge = document.createElement('span');
-                danBadge.className = `badge elo-badge ${danInfo.cssClass}`;
-                danBadge.textContent = danInfo.label;
-                danBadge.title = `Elo: ${ratingInfo.elo} (${ratingInfo.games}戦)`;
+                if (state.isPremiumUnlocked) {
+                    danBadge.className = `badge elo-badge ${danInfo.cssClass}`;
+                    danBadge.textContent = danInfo.label;
+                    danBadge.title = `Elo: ${ratingInfo.elo} (${ratingInfo.games}戦)`;
+                } else {
+                    danBadge.className = 'badge elo-badge-locked';
+                    danBadge.textContent = '🔒 プレミアム段位';
+                    danBadge.title = 'クリックしてプレミアム設定へ';
+                    danBadge.addEventListener('click', () => {
+                        const tabBtn = document.querySelector('[data-tab="setup"]');
+                        if (tabBtn) tabBtn.click();
+                        setTimeout(() => {
+                            const widget = document.querySelector('.premium-widget');
+                            if (widget) widget.scrollIntoView({ behavior: 'smooth' });
+                        }, 150);
+                    });
+                }
                 nameRow.appendChild(danBadge);
             }
+            
             // 称号バッジ
             const titleBadge = document.createElement('span');
-            titleBadge.className = `badge title-badge ${titleInfo.cssClass}`;
-            titleBadge.textContent = titleInfo.label;
+            if (state.isPremiumUnlocked) {
+                titleBadge.className = `badge title-badge ${titleInfo.cssClass}`;
+                titleBadge.textContent = titleInfo.label;
+            } else {
+                titleBadge.className = 'badge title-badge-locked';
+                titleBadge.textContent = '🔒 プレミアム称号';
+                titleBadge.title = 'クリックしてプレミアム設定へ';
+                titleBadge.addEventListener('click', () => {
+                    const tabBtn = document.querySelector('[data-tab="setup"]');
+                    if (tabBtn) tabBtn.click();
+                    setTimeout(() => {
+                        const widget = document.querySelector('.premium-widget');
+                        if (widget) widget.scrollIntoView({ behavior: 'smooth' });
+                    }, 150);
+                });
+            }
             nameRow.appendChild(titleBadge);
 
             const yakitoriRate = stats.yakitoriCount ? ((stats.yakitoriCount / stats.gamesCount) * 100).toFixed(1) : '0.0';
@@ -1486,7 +1527,7 @@ const DOM = {
                 <span>1位率: <strong style="color:var(--color-rank-1)">${r1Percent.toFixed(1)}%</strong></span>
                 <span>ラス率: <strong style="color:var(--accent-red)">${r4Percent.toFixed(1)}%</strong></span>
                 <span>焼き鳥: <strong>${stats.yakitoriCount || 0}</strong> 回</span>
-                ${ratingInfo ? `<span>Elo: <strong style="color:var(--accent-gold)">${ratingInfo.elo}</strong></span>` : ''}
+                ${ratingInfo ? `<span>Elo: <strong style="color:var(--accent-gold)">${state.isPremiumUnlocked ? ratingInfo.elo : '🔒'}</strong></span>` : ''}
             `;
 
             // Visual bar showing ratios of 1st, 2nd, 3rd, 4th place
@@ -1526,9 +1567,136 @@ const DOM = {
 
         // Generate text report to share
         this.generateShareableReport(periodTitle, sortedPlayers);
-
         // グラフ描画（PremiumFeaturesへ委譲）
         PremiumFeatures.renderCharts(sortedPlayers, state.gameRecords);
+    },
+
+    // ==========================================
+    // PREMIUM LOCK SYSTEM LOGIC
+    // ==========================================
+    initPremium() {
+        const PREMIUM_HASH = "01ddac116b660a924b4808dad77e15c8e34d302629a3a29b93fbe7f87c9e4011"; // SHA-256 for "mj-premium-2026"
+        const NOTE_ARTICLE_URL = "https://note.com/";
+
+        // Helper to hash password
+        const sha256 = async (message) => {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        };
+
+        const handleUnlock = async (pwdInputEl, errEl) => {
+            const password = pwdInputEl.value.trim();
+            if (!password) return;
+
+            errEl.textContent = '検証中...';
+            const hash = await sha256(password);
+            
+            if (hash === PREMIUM_HASH) {
+                state.isPremiumUnlocked = true;
+                Storage.savePremium();
+                errEl.textContent = '';
+                pwdInputEl.value = '';
+                this.updatePremiumUI();
+                this.renderStats();
+            } else {
+                errEl.textContent = 'パスワードが正しくありません。';
+                pwdInputEl.classList.add('shake-animation');
+                setTimeout(() => {
+                    pwdInputEl.classList.remove('shake-animation');
+                }, 400);
+            }
+        };
+
+        // 1. Stats Tab Lock Overlay
+        const unlockBtn = document.getElementById('premium-unlock-btn');
+        const passwordInput = document.getElementById('premium-password');
+        const errorMsg = document.getElementById('premium-error-msg');
+        const noteLink = document.getElementById('premium-note-link');
+
+        if (noteLink) {
+            noteLink.href = NOTE_ARTICLE_URL;
+        }
+
+        if (unlockBtn && passwordInput && errorMsg) {
+            unlockBtn.addEventListener('click', () => handleUnlock(passwordInput, errorMsg));
+            passwordInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') handleUnlock(passwordInput, errorMsg);
+            });
+        }
+
+        // 2. Setup Tab Widget
+        const setupUnlockBtn = document.getElementById('setup-premium-unlock-btn');
+        const setupPasswordInput = document.getElementById('setup-premium-password');
+        const setupErrorMsg = document.getElementById('setup-premium-error-msg');
+
+        if (setupUnlockBtn && setupPasswordInput && setupErrorMsg) {
+            setupUnlockBtn.addEventListener('click', () => handleUnlock(setupPasswordInput, setupErrorMsg));
+            setupPasswordInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') handleUnlock(setupPasswordInput, setupErrorMsg);
+            });
+        }
+
+        // 3. Setup Tab Lock Button (Test tool)
+        const setupLockBtn = document.getElementById('setup-premium-lock-btn');
+        if (setupLockBtn) {
+            setupLockBtn.addEventListener('click', () => {
+                if (confirm('プレミアム機能を再びロックしますか？（動作確認用）')) {
+                    state.isPremiumUnlocked = false;
+                    Storage.savePremium();
+                    this.updatePremiumUI();
+                    this.renderStats();
+                }
+            });
+        }
+
+        this.updatePremiumUI();
+    },
+
+    updatePremiumUI() {
+        const isUnlocked = state.isPremiumUnlocked;
+
+        // Stats Tab Lock Overlay
+        const lockOverlay = document.getElementById('premium-lock-overlay');
+        const lockedContent = document.getElementById('premium-locked-content');
+        const chartPanel = document.getElementById('chart-panel');
+        
+        if (lockOverlay && lockedContent) {
+            if (isUnlocked) {
+                lockOverlay.style.display = 'none';
+                lockedContent.classList.remove('premium-blurred');
+                if (chartPanel) chartPanel.classList.remove('premium-locked-container');
+            } else {
+                lockOverlay.style.display = 'flex';
+                lockedContent.classList.add('premium-blurred');
+                if (chartPanel) chartPanel.classList.add('premium-locked-container');
+            }
+        }
+
+        // Setup Tab Widget
+        const statusBadge = document.getElementById('setup-premium-status');
+        const lockedActions = document.getElementById('setup-premium-locked-actions');
+        const unlockedActions = document.getElementById('setup-premium-unlocked-actions');
+        const setupErrorMsg = document.getElementById('setup-premium-error-msg');
+        const statsErrorMsg = document.getElementById('premium-error-msg');
+
+        if (statusBadge && lockedActions && unlockedActions) {
+            if (setupErrorMsg) setupErrorMsg.textContent = '';
+            if (statsErrorMsg) statsErrorMsg.textContent = '';
+            
+            if (isUnlocked) {
+                statusBadge.textContent = '有効化済み';
+                statusBadge.className = 'premium-status-badge unlocked';
+                lockedActions.style.display = 'none';
+                unlockedActions.style.display = 'flex';
+            } else {
+                statusBadge.textContent = '未有効化';
+                statusBadge.className = 'premium-status-badge locked';
+                lockedActions.style.display = 'flex';
+                unlockedActions.style.display = 'none';
+            }
+        }
     },
 
     generateShareableReport(title, playersList) {

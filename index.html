@@ -130,6 +130,28 @@
                     <i class="fa-solid fa-play"></i> 対局を開始する
                 </button>
             </div>
+
+            <!-- Premium Settings Widget -->
+            <div class="premium-widget">
+                <div class="premium-widget-header">
+                    <div class="premium-widget-title">
+                        <i class="fa-solid fa-crown text-gold"></i> プレミアム設定
+                    </div>
+                    <div id="setup-premium-status" class="premium-status-badge locked">未有効化</div>
+                </div>
+                <p style="font-size: 0.85rem; color: #8c9c96; margin-bottom: 1rem;">
+                    プレミアム機能（グラフ分析・自動称号・段位レーティング）の有効化状態を管理します。
+                </p>
+                <div id="setup-premium-locked-actions" style="display: flex; gap: 0.5rem; align-items: center;">
+                    <input type="password" id="setup-premium-password" class="premium-password-input" placeholder="パスワードを入力" style="padding: 0.5rem 1rem; height: 38px;">
+                    <button id="setup-premium-unlock-btn" class="btn btn-primary" style="width: auto; padding: 0.5rem 1.5rem; font-size: 0.9rem; height: 38px; white-space: nowrap;">有効化</button>
+                </div>
+                <div id="setup-premium-unlocked-actions" style="display: none; gap: 0.5rem; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 0.9rem; color: var(--accent-green); font-weight: bold;"><i class="fa-solid fa-circle-check"></i> すべての機能が有効化されています</span>
+                    <button id="setup-premium-lock-btn" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem; font-size: 0.85rem; border-color: var(--accent-red); color: #ff8a65; height: 38px;">機能をロックする</button>
+                </div>
+                <div id="setup-premium-error-msg" class="premium-error-msg" style="text-align: left; margin-top: 0.5rem;"></div>
+            </div>
         </section>
 
         <!-- 2. ACTIVE GAME ENTRY VIEW -->
@@ -236,24 +258,44 @@
         <!-- 4. STATS VIEW -->
         <section id="stats" class="view-panel">
             <!-- Graph Panel (NEW) -->
-            <div id="chart-panel" class="panel">
+            <div id="chart-panel" class="panel premium-locked-container">
                 <h2><i class="fa-solid fa-chart-pie text-gold"></i> グラフ分析</h2>
-                <div class="tab-navigation chart-tabs" style="margin-bottom: 1.5rem;">
-                    <button class="tab-btn active" data-chart-tab="rank-chart-container">順位推移</button>
-                    <button class="tab-btn" data-chart-tab="avg-rank-chart-container">平均順位</button>
-                </div>
-
-                <div id="rank-chart-container" class="chart-tab-content active">
-                    <canvas id="rank-history-chart" style="max-height: 300px;"></canvas>
-                    <div class="chart-controls" style="margin-top: 1rem; text-align: center;">
-                        <label for="chart-games-slider" style="margin-right: 0.5rem;">表示対局数:</label>
-                        <input type="range" id="chart-games-slider" min="5" max="100" value="20" step="1">
-                        <span id="chart-games-value">20戦</span>
+                
+                <!-- Premium Lock Overlay -->
+                <div id="premium-lock-overlay" class="premium-lock-overlay">
+                    <div class="premium-lock-icon"><i class="fa-solid fa-lock"></i></div>
+                    <h3 class="premium-title">プレミアム機能</h3>
+                    <p class="premium-desc">「グラフ分析」「自動称号」「段位レーティング」を開放するには、Noteでパスワードを取得して入力してください。</p>
+                    <div class="premium-action-group">
+                        <a href="https://note.com/" target="_blank" class="premium-note-btn" id="premium-note-link">
+                            <i class="fa-solid fa-file-invoice"></i> Noteでパスワードを確認する
+                        </a>
+                        <div class="premium-input-row">
+                            <input type="password" id="premium-password" class="premium-password-input" placeholder="パスワードを入力">
+                            <button id="premium-unlock-btn" class="premium-submit-btn">解除</button>
+                        </div>
+                        <div id="premium-error-msg" class="premium-error-msg"></div>
                     </div>
                 </div>
 
-                <div id="avg-rank-chart-container" class="chart-tab-content" style="display: none;">
-                    <canvas id="avg-rank-bar-chart" style="max-height: 250px;"></canvas>
+                <div id="premium-locked-content" class="premium-blurred">
+                    <div class="tab-navigation chart-tabs" style="margin-bottom: 1.5rem;">
+                        <button class="tab-btn active" data-chart-tab="rank-chart-container">順位推移</button>
+                        <button class="tab-btn" data-chart-tab="avg-rank-chart-container">平均順位</button>
+                    </div>
+
+                    <div id="rank-chart-container" class="chart-tab-content active">
+                        <canvas id="rank-history-chart" style="max-height: 300px;"></canvas>
+                        <div class="chart-controls" style="margin-top: 1rem; text-align: center;">
+                            <label for="chart-games-slider" style="margin-right: 0.5rem;">表示対局数:</label>
+                            <input type="range" id="chart-games-slider" min="5" max="100" value="20" step="1">
+                            <span id="chart-games-value">20戦</span>
+                        </div>
+                    </div>
+
+                    <div id="avg-rank-chart-container" class="chart-tab-content" style="display: none;">
+                        <canvas id="avg-rank-bar-chart" style="max-height: 250px;"></canvas>
+                    </div>
                 </div>
            </div>
             <!-- Summary Stats Card -->
