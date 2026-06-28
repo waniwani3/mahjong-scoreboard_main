@@ -24,6 +24,7 @@
             <button class="tab-btn" data-tab="game"><i class="fa-solid fa-pen-to-square"></i> スコア入力</button>
             <button class="tab-btn" data-tab="history"><i class="fa-solid fa-history"></i> 対局履歴</button>
             <button class="tab-btn" data-tab="stats"><i class="fa-solid fa-chart-line"></i> 成績統計</button>
+            <button class="tab-btn" data-tab="badges"><i class="fa-solid fa-medal"></i> バッジ解説</button>
         </nav>
     </header>
 
@@ -346,6 +347,97 @@
             </div>
         </section>
 
+        <!-- 5. BADGES VIEW -->
+        <section id="badges" class="view-panel">
+            <div class="panel">
+                <h2><i class="fa-solid fa-medal text-gold"></i> 段位・称号一覧</h2>
+                <p style="font-size: 0.85rem; color: #8c9c96; margin: 0.5rem 0 1.5rem 0;">
+                    対局数や成績に応じてプレイヤーに付与される段位と称号の獲得条件一覧です。
+                </p>
+
+                <h3 style="margin-bottom: 0.5rem; color: var(--accent-gold);">【1. 段位バッジ】</h3>
+                <p style="font-size: 0.85rem; color: #8c9c96; margin-bottom: 1rem;">
+                    4人打ちの対局で算出されるEloレーティングに基づき、プレイヤー名の横に表示されます。
+                </p>
+                <div class="badges-list" style="display: grid; gap: 0.75rem; margin-bottom: 2rem;">
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge elo-badge" style="width: 80px; text-align: center;">🔰 体験中</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">対局数 5戦未満</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge elo-badge" style="width: 80px; text-align: center;">一段</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">対局数 5戦以上、Eloレーティング 1499以下</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge elo-badge" style="width: 80px; text-align: center;">二段</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">Eloレーティング 1500 〜 1549</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge elo-badge elo-badge-3-star" style="width: 80px; text-align: center;">三段⭐</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">Eloレーティング 1550 〜 1599</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge elo-badge elo-badge-4-star" style="width: 80px; text-align: center;">四段⭐</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">Eloレーティング 1600 〜 1649</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge elo-badge elo-badge-4-star" style="width: 80px; text-align: center;">五段⭐</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">Eloレーティング 1650 〜 1699</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge elo-badge elo-badge-6-diamond" style="width: 80px; text-align: center;">六段💎</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">Eloレーティング 1700 〜 1749</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge elo-badge elo-badge-6-diamond" style="width: 80px; text-align: center;">七段💎</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">Eloレーティング 1750 〜 1799</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge elo-badge elo-badge-8-crown" style="width: 80px; text-align: center;">八段👑</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">Eloレーティング 1800 〜 1849</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge elo-badge elo-badge-9-crown elo-badge-9-crown-fire" style="width: 80px; text-align: center;">九段👑🔥</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">Eloレーティング 1850 以上</span>
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom: 0.5rem; color: var(--accent-gold);">【2. 自動称号バッジ】</h3>
+                <p style="font-size: 0.85rem; color: #8c9c96; margin-bottom: 1rem;">
+                    全対局データから自動で算出され、プレイヤー名の下に表示されます。（判定優先順位：上から順に1つのみ付与）
+                </p>
+                <div class="badges-list" style="display: grid; gap: 0.75rem;">
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge title-badge title-badge-king" style="width: 90px; text-align: center;">👑 絶対王者</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">1位率が 50% 以上 かつ 10戦以上</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge title-badge title-badge-stable" style="width: 90px; text-align: center;">💎 安定の上位</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">平均順位が 2.0 位以内 かつ 5戦以上</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge title-badge title-badge-rising" style="width: 90px; text-align: center;">📈 急上昇中</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">直近5戦の平均順位が全体平均より0.5以上良い かつ 5戦以上</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge title-badge title-badge-slump" style="width: 90px; text-align: center;">😭 ラス常連</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">ラス率（4人打ちは4位率、3人打ちは3位率）が 50% 以上 かつ 5戦以上</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge title-badge title-badge-fire" style="width: 90px; text-align: center;">🔥 ゾーン突入</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">直近3連続で1位を獲得（即時付与）</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge title-badge title-badge-normal" style="width: 90px; text-align: center;">🃏 いつも通り</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">上記のいずれの条件にも該当しない かつ 5戦以上</span>
+                    </div>
+                    <div class="roster-item" style="justify-content: flex-start; gap: 1rem;">
+                        <span class="badge title-badge title-badge-newbie" style="width: 90px; text-align: center;">🔰 体験中</span>
+                        <span style="font-size: 0.9rem; color: #e0e6e3;">通算の対局数が 5戦未満</span>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <!-- Hidden element for generating share card image -->
@@ -372,6 +464,10 @@
         <button class="mobile-nav-btn" data-tab="stats">
             <i class="fa-solid fa-chart-line"></i>
             <span>成績</span>
+        </button>
+        <button class="mobile-nav-btn" data-tab="badges">
+            <i class="fa-solid fa-medal"></i>
+            <span>バッジ</span>
         </button>
     </nav>
 

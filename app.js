@@ -96,7 +96,7 @@ const Storage = {
     saveRatings() {
         localStorage.setItem('mj_ratings', JSON.stringify(state.ratings));
     },
-    
+
     loadRatings() {
         const ratingsData = localStorage.getItem('mj_ratings');
         if (ratingsData) {
@@ -1474,7 +1474,7 @@ const DOM = {
             nameSpan.style.cssText = 'font-weight:700; font-size:1.1rem;';
             nameSpan.textContent = stats.name;
             nameRow.appendChild(nameSpan);
-            
+
             // 段位バッジ（Eloデータある場合のみ）
             if (ratingInfo) {
                 const danBadge = document.createElement('span');
@@ -1497,7 +1497,7 @@ const DOM = {
                 }
                 nameRow.appendChild(danBadge);
             }
-            
+
             // 称号バッジ
             const titleBadge = document.createElement('span');
             if (state.isPremiumUnlocked) {
@@ -1568,7 +1568,7 @@ const DOM = {
         // Generate text report to share
         this.generateShareableReport(periodTitle, sortedPlayers);
         // グラフ描画（PremiumFeaturesへ委譲）
-        PremiumFeatures.renderCharts(sortedPlayers, state.gameRecords);
+        PremiumFeatures.renderCharts(sortedPlayers, filtered);
     },
 
     // ==========================================
@@ -1592,7 +1592,7 @@ const DOM = {
 
             errEl.textContent = '検証中...';
             const hash = await sha256(password);
-            
+
             if (hash === PREMIUM_HASH) {
                 state.isPremiumUnlocked = true;
                 Storage.savePremium();
@@ -1661,7 +1661,7 @@ const DOM = {
         const lockOverlay = document.getElementById('premium-lock-overlay');
         const lockedContent = document.getElementById('premium-locked-content');
         const chartPanel = document.getElementById('chart-panel');
-        
+
         if (lockOverlay && lockedContent) {
             if (isUnlocked) {
                 lockOverlay.style.display = 'none';
@@ -1684,7 +1684,7 @@ const DOM = {
         if (statusBadge && lockedActions && unlockedActions) {
             if (setupErrorMsg) setupErrorMsg.textContent = '';
             if (statsErrorMsg) statsErrorMsg.textContent = '';
-            
+
             if (isUnlocked) {
                 statusBadge.textContent = '有効化済み';
                 statusBadge.className = 'premium-status-badge unlocked';
@@ -1726,6 +1726,7 @@ const DOM = {
 const PremiumFeatures = {
     rankHistoryChart: null,
     avgRankBarChart: null,
+    currentRecords: [], // フィルタリングされた現在表示対象の対局データ
 
     init() {
         // Event Listeners for Chart controls
@@ -1734,16 +1735,16 @@ const PremiumFeatures = {
         if (slider) {
             slider.addEventListener('input', () => {
                 valueDisplay.textContent = `${slider.value}戦`;
-                this.renderRankHistoryChart(this.getFilteredStats().fullHistory);
+                this.renderRankHistoryChart(this.currentRecords || state.gameRecords);
             });
         }
-        
+
         // Chart Tabs
         document.querySelectorAll('.chart-tabs .tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.chart-tabs .tab-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                
+
                 const targetId = btn.getAttribute('data-chart-tab');
                 document.querySelectorAll('.chart-tab-content').forEach(content => {
                     content.style.display = content.id === targetId ? 'block' : 'none';
@@ -1758,14 +1759,14 @@ const PremiumFeatures = {
 
         // Share Image button
         const shareBtn = document.getElementById('share-image-btn');
-        if(shareBtn) {
+        if (shareBtn) {
             shareBtn.addEventListener('click', () => {
                 // TODO: generateShareCard は機能5（シェアカード）で実装予定
                 alert('シェア画像機能は準備中です。');
             });
         }
     },
-    
+
     // ==========================================
     // ELO 段位判定
     // ==========================================
@@ -1872,8 +1873,8 @@ const PremiumFeatures = {
         recent.forEach(r => r.results.forEach(res => playerIdSet.add(res.playerId)));
         const playerIds = Array.from(playerIdSet);
 
-        // X軸ラベル（「MM/DD 第N戦」形式）
-        const labels = recent.map(r => `${r.date.slice(5)} 第${r.gameNumber}戦`);
+        // X軸ラベル（「YYYY/MM/DD 第N戦」形式）
+        const labels = recent.map(r => `${r.date.replace(/-/g, '/')} 第${r.gameNumber}戦`);
 
         // データセット生成
         const datasets = playerIds.map((pid, colorIndex) => {
@@ -2030,6 +2031,7 @@ const PremiumFeatures = {
         }
 
         chartPanel.style.display = 'block';
+        this.currentRecords = allRecords; // 現在の集計期間のデータを保持
         this.renderRankHistoryChart(allRecords);
         this.renderAvgRankBarChart(sortedPlayers);
     },
