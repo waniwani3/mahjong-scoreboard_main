@@ -887,6 +887,81 @@ input:focus, select:focus {
     main {
         padding-bottom: 5.5rem; /* Ensure main contents aren't blocked by bottom nav */
     }
+
+    /* リーダーボードカードのモバイル最適化 (縦の間延びを解消し、キュッとコンパクトに) */
+    .leaderboard-grid {
+        gap: 0.5rem;
+    }
+
+    .leaderboard-card {
+        padding: 0.6rem 0.8rem;
+        gap: 0.2rem 0.6rem;
+        grid-template-columns: 28px 1fr auto;
+    }
+
+    .rank-badge {
+        width: 26px;
+        height: 26px;
+        font-size: 1.1rem;
+        border-width: 1.5px;
+    }
+
+    .player-details {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.15rem;
+        margin-bottom: 0;
+    }
+
+    /* プレイヤー名とバッジの表示行 */
+    .player-details > div:first-child {
+        gap: 0.3rem !important;
+    }
+
+    .player-details span[style*="font-size:1.1rem"] {
+        font-size: 0.95rem !important;
+    }
+
+    .badge {
+        font-size: 0.6rem;
+        padding: 0.1rem 0.3rem;
+        border-radius: 4px;
+    }
+
+    .title-badge {
+        padding: 0.05rem 0.25rem;
+        font-size: 0.6rem;
+    }
+
+    /* 成績数値のリスト */
+    .player-stats-row {
+        font-size: 0.72rem;
+        gap: 0.1rem 0.45rem;
+        line-height: 1.2;
+    }
+
+    /* トータルスコア */
+    .player-total-score {
+        font-size: 1.2rem;
+    }
+
+    /* 順位分布バーと凡例 */
+    .distribution-bar {
+        height: 5px;
+        margin-top: 0.2rem;
+    }
+
+    .distribution-legend {
+        gap: 0.4rem;
+        font-size: 0.65rem;
+        margin-top: 0.1rem;
+    }
+
+    .legend-color {
+        width: 6px;
+        height: 6px;
+    }
 }
 
 /* ==========================================
