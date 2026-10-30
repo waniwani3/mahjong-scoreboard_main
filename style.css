@@ -787,6 +787,129 @@ input:focus, select:focus {
     animation: fadeIn 0.4s ease-out;
 }
 
+/* Rank Chart Specific Styles */
+.chart-player-selector {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(10, 20, 16, 0.4);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+.chart-selector-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 600;
+}
+.chart-filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+}
+.chart-filter-pill {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    user-select: none;
+}
+.chart-filter-pill:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+}
+.chart-filter-pill.active {
+    background: rgba(212, 175, 55, 0.18);
+    border-color: var(--accent-gold);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.25);
+}
+.chart-filter-pill .pill-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+.chart-canvas-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 330px;
+    max-height: 400px;
+    background: radial-gradient(circle at 50% 10%, rgba(20, 36, 28, 0.7) 0%, rgba(10, 18, 14, 0.95) 100%);
+    border-radius: var(--border-radius-md);
+    border: 1px solid rgba(212, 175, 55, 0.12);
+    box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.5), 0 4px 15px rgba(0, 0, 0, 0.3);
+    padding: 1rem 0.75rem 0.5rem;
+    margin-bottom: 1rem;
+}
+#rank-history-chart {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.chart-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+}
+.chart-slider-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(10, 20, 16, 0.4);
+    padding: 0.4rem 1rem;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.chart-slider-group label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+}
+.chart-slider-group input[type="range"] {
+    accent-color: var(--accent-gold);
+    cursor: pointer;
+    width: 120px;
+}
+.chart-slider-badge {
+    background: var(--accent-gold);
+    color: #0b1410;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+}
+.chart-hint-text {
+    font-size: 0.72rem;
+    color: var(--text-tertiary);
+    text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
 /* Share Card Styles (for image generation) */
 #share-card-content {
     background: var(--bg-tertiary);

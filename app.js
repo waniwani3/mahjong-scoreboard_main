@@ -2389,6 +2389,8 @@ const PremiumFeatures = {
         return { label: '🃏 いつも通り', cssClass: 'title-badge-normal' };
     },
 
+    focusedPlayerId: 'all', // 'all' または 特定の playerId
+
     // ==========================================
     // CHART: 順位推移グラフ（折れ線グラフ）
     // ==========================================
@@ -2399,14 +2401,16 @@ const PremiumFeatures = {
         const slider = document.getElementById('chart-games-slider');
         const maxGames = slider ? Number(slider.value) : 20;
 
-        // プレイヤーカラーパレット（固定色）
+        // プレイヤーカラーパレット（ダークテーマに映える高識別度カラー）
         const playerColors = [
-            '#ffd700', // gold
-            '#00e676', // green
-            '#2979ff', // blue
-            '#ff3d00', // red
-            '#e040fb', // purple
-            '#00bcd4', // cyan
+            '#ffd700', // Gold
+            '#00e5ff', // Cyan
+            '#ff5252', // Coral Red
+            '#00e676', // Emerald
+            '#b388ff', // Lavender
+            '#ff9100', // Amber
+            '#ff4081', // Rose Pink
+            '#64ffda', // Teal
         ];
 
         // 全記録を日付・ゲーム番号順にソート
@@ -2418,37 +2422,109 @@ const PremiumFeatures = {
         // 直近 maxGames 件を取得
         const recent = sorted.slice(-maxGames);
         if (recent.length === 0) {
-            document.getElementById('chart-panel').style.display = 'none';
+            const panel = document.getElementById('chart-panel');
+            if (panel) panel.style.display = 'none';
             return;
         }
 
         // 登場プレイヤーIDを収集（出現順を保持）
         const playerIdSet = new Set();
-        recent.forEach(r => r.results.forEach(res => playerIdSet.add(res.playerId)));
+        let maxRankObserved = 3;
+        recent.forEach(r => {
+            r.results.forEach(res => {
+                playerIdSet.add(res.playerId);
+                if (res.rank > maxRankObserved) maxRankObserved = res.rank;
+            });
+        });
         const playerIds = Array.from(playerIdSet);
 
-        // X軸ラベル（「YYYY/MM/DD 第N戦」形式）
-        const labels = recent.map(r => `${r.date.replace(/-/g, '/')} 第${r.gameNumber}戦`);
+        // 現在の対局集合にフォーカスプレイヤーが存在しない場合は 'all' にリセット
+        if (this.focusedPlayerId !== 'all' && !playerIds.includes(this.focusedPlayerId)) {
+            this.focusedPlayerId = 'all';
+        }
+
+        // 最大順位（3人打ちなら3、4人打ちなら4）
+        const maxRank = Math.max(maxRankObserved, state.rules?.playerCount || 4);
+
+        // 注目プレイヤー選択バーの描画・更新
+        this.renderChartPlayerFilter(playerIds, playerColors, allRecords);
+
+        // X軸ラベル（短縮形式: "10/30 #1" や "第N戦"）
+        const labels = recent.map(r => {
+            const shortDate = r.date.split('-').slice(1).join('/');
+            return `${shortDate} #${r.gameNumber}`;
+        });
 
         // データセット生成
+        const isHighlightMode = this.focusedPlayerId && this.focusedPlayerId !== 'all';
+
         const datasets = playerIds.map((pid, colorIndex) => {
             const player = state.players.find(p => p.id === pid) || { name: pid };
             const data = recent.map(r => {
                 const res = r.results.find(x => x.playerId === pid);
                 return res ? res.rank : null; // 参加していない場合はnull
             });
+
             const color = playerColors[colorIndex % playerColors.length];
-            return {
-                label: player.name,
-                data: data,
-                borderColor: color,
-                backgroundColor: color + '33',
-                borderWidth: 2.5,
-                pointRadius: 5,
-                pointHoverRadius: 7,
-                tension: 0.3,
-                spanGaps: false
-            };
+            const isTarget = this.focusedPlayerId === pid;
+
+            if (isHighlightMode) {
+                if (isTarget) {
+                    // 選択された注目プレイヤー（太く鮮明に強調、最前面へ）
+                    return {
+                        label: player.name,
+                        data: data,
+                        borderColor: color,
+                        backgroundColor: color + '2a',
+                        borderWidth: 4,
+                        pointRadius: 6,
+                        pointHoverRadius: 9,
+                        pointBackgroundColor: color,
+                        pointBorderColor: '#0a1612',
+                        pointBorderWidth: 2.5,
+                        tension: 0.1,
+                        spanGaps: true,
+                        order: -10,
+                        borderDash: []
+                    };
+                } else {
+                    // 非選択のプレイヤー（半透明＆控えめな点線で背景化）
+                    return {
+                        label: player.name,
+                        data: data,
+                        borderColor: 'rgba(160, 185, 175, 0.22)',
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        pointRadius: 2.5,
+                        pointHoverRadius: 5,
+                        pointBackgroundColor: 'rgba(160, 185, 175, 0.4)',
+                        pointBorderColor: 'transparent',
+                        pointBorderWidth: 0,
+                        tension: 0.1,
+                        spanGaps: true,
+                        order: 10,
+                        borderDash: [4, 4]
+                    };
+                }
+            } else {
+                // 全員通常表示モード
+                return {
+                    label: player.name,
+                    data: data,
+                    borderColor: color,
+                    backgroundColor: color + '1a',
+                    borderWidth: 2.8,
+                    pointRadius: 5,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: color,
+                    pointBorderColor: '#0c1a14',
+                    pointBorderWidth: 2,
+                    tension: 0.1,
+                    spanGaps: true,
+                    order: colorIndex,
+                    borderDash: []
+                };
+            }
         });
 
         // 既存チャートを破棄してから再描画
@@ -2462,39 +2538,173 @@ const PremiumFeatures = {
             data: { labels, datasets },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                },
+                layout: {
+                    padding: {
+                        top: 10,
+                        bottom: 5,
+                        left: 5,
+                        right: 15
+                    }
+                },
                 scales: {
                     y: {
                         reverse: true,
-                        min: 0.5,
-                        max: 4.5,
+                        min: 0.75,
+                        max: maxRank + 0.25,
                         ticks: {
                             stepSize: 1,
-                            callback: v => `${v}位`,
-                            color: '#8c9c96'
+                            callback: function(v) {
+                                if (v === 1) return '🥇 1位 (トップ)';
+                                if (v === 2) return '🥈 2位';
+                                if (v === 3) return maxRank === 3 ? '💀 3位 (ラス)' : '🥉 3位';
+                                if (v === 4) return '💀 4位 (ラス)';
+                                return '';
+                            },
+                            color: function(ctx) {
+                                if (ctx.tick.value === 1) return '#ffd700'; // トップはゴールド
+                                if (ctx.tick.value === maxRank) return '#ff7675'; // ラスは淡い赤
+                                return '#a0b3a8';
+                            },
+                            font: {
+                                family: 'Outfit, sans-serif',
+                                size: 11.5,
+                                weight: '600'
+                            },
+                            padding: 8
                         },
-                        grid: { color: 'rgba(255,255,255,0.05)' }
+                        grid: {
+                            color: function(ctx) {
+                                if (ctx.tick.value === 1) return 'rgba(212, 175, 55, 0.4)'; // 1位ライン強調
+                                if (ctx.tick.value === maxRank) return 'rgba(255, 82, 82, 0.3)'; // ラスライン強調
+                                if (ctx.tick.value >= 1 && ctx.tick.value <= maxRank) return 'rgba(255, 255, 255, 0.08)';
+                                return 'transparent';
+                            },
+                            lineWidth: function(ctx) {
+                                if (ctx.tick.value === 1 || ctx.tick.value === maxRank) return 1.5;
+                                return 1;
+                            }
+                        }
                     },
                     x: {
                         ticks: {
                             color: '#8c9c96',
-                            maxRotation: 45,
+                            maxRotation: 35,
+                            minRotation: 0,
                             autoSkip: true,
-                            maxTicksLimit: 12
+                            maxTicksLimit: 12,
+                            font: {
+                                family: 'Outfit, sans-serif',
+                                size: 10.5
+                            }
                         },
-                        grid: { color: 'rgba(255,255,255,0.05)' }
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.04)'
+                        }
                     }
                 },
                 plugins: {
                     legend: {
-                        labels: { color: '#e0e6e3', font: { family: 'Outfit', size: 12 } }
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            color: '#e0e6e3',
+                            font: { family: 'Outfit, sans-serif', size: 11 },
+                            boxWidth: 14,
+                            boxHeight: 14,
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            padding: 12
+                        },
+                        onClick: (e, legendItem, legend) => {
+                            // 凡例クリックで対象プレイヤーの強調をトグル
+                            const index = legendItem.datasetIndex;
+                            const pid = playerIds[index];
+                            if (this.focusedPlayerId === pid) {
+                                this.focusedPlayerId = 'all';
+                            } else {
+                                this.focusedPlayerId = pid;
+                            }
+                            this.renderRankHistoryChart(allRecords);
+                        }
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(10, 22, 17, 0.94)',
+                        titleColor: '#ffd700',
+                        titleFont: { family: 'Outfit, sans-serif', size: 12, weight: 'bold' },
+                        bodyColor: '#e0e6e3',
+                        bodyFont: { family: 'Outfit, sans-serif', size: 12 },
+                        borderColor: 'rgba(212, 175, 55, 0.35)',
+                        borderWidth: 1,
+                        padding: 10,
+                        cornerRadius: 8,
+                        boxPadding: 4,
                         callbacks: {
-                            label: ctx => `${ctx.dataset.label}: ${ctx.raw}位`
+                            title: function(items) {
+                                if (!items.length) return '';
+                                const index = items[0].dataIndex;
+                                const rec = recent[index];
+                                return `${rec.date.replace(/-/g, '/')} 第${rec.gameNumber}戦`;
+                            },
+                            label: function(ctx) {
+                                const pid = playerIds[ctx.datasetIndex];
+                                const rec = recent[ctx.dataIndex];
+                                const res = rec ? rec.results.find(x => x.playerId === pid) : null;
+                                if (!res) return null;
+
+                                const rankMedal = res.rank === 1 ? '🥇' : res.rank === 2 ? '🥈' : res.rank === 3 ? '🥉' : '💀';
+                                const scoreSign = res.score >= 0 ? `+${res.score.toFixed(1)}` : res.score.toFixed(1);
+                                const rawText = res.rawPoints != null ? ` (${res.rawPoints.toLocaleString()}点)` : '';
+                                return ` ${rankMedal} ${ctx.dataset.label}: ${res.rank}位 [${scoreSign}pt]${rawText}`;
+                            }
                         }
                     }
                 }
             }
+        });
+    },
+
+    // 注目プレイヤー切り替えボタンバーの生成
+    renderChartPlayerFilter(playerIds, playerColors, allRecords) {
+        const container = document.getElementById('rank-chart-filter-bar');
+        if (!container) return;
+
+        let html = `
+            <button class="chart-filter-pill ${this.focusedPlayerId === 'all' ? 'active' : ''}" data-player-id="all">
+                <i class="fa-solid fa-users"></i> 全員表示
+            </button>
+        `;
+
+        playerIds.forEach((pid, index) => {
+            const player = state.players.find(p => p.id === pid) || { name: pid };
+            const color = playerColors[index % playerColors.length];
+            const isActive = this.focusedPlayerId === pid;
+            html += `
+                <button class="chart-filter-pill ${isActive ? 'active' : ''}" data-player-id="${pid}">
+                    <span class="pill-dot" style="background-color: ${color}; ${isActive ? 'box-shadow: 0 0 6px ' + color : ''}"></span>
+                    <span>${DOM.escapeHtml(player.name)}</span>
+                </button>
+            `;
+        });
+
+        container.innerHTML = html;
+
+        // イベントリスナーの付与
+        container.querySelectorAll('.chart-filter-pill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const pid = btn.getAttribute('data-player-id');
+                if (this.focusedPlayerId === pid && pid !== 'all') {
+                    this.focusedPlayerId = 'all'; // 再度クリックで解除
+                } else {
+                    this.focusedPlayerId = pid;
+                }
+                this.renderRankHistoryChart(allRecords);
+            });
         });
     },
 
