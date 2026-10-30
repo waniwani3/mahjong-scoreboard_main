@@ -4,16 +4,19 @@
 
 // State Object
 const state = {
-    players: [],      // Array of { id, name }
-    gameRecords: [],  // Array of Game Records
-    ratings: {},      // { playerId: { elo: 1500, games: 0 } }
-    activePlayers: [], // Array of IDs currently selected for the match (length 3 or 4)
+    groups: [],           // Array of { id, name, createdAt }
+    currentGroupId: 'group_default',
+    players: [],          // Array of { id, name, groupId }
+    gameRecords: [],      // Array of Game Records { id, groupId, date, gameNumber, playerCount, results }
+    ratings: {},          // { playerId: { elo: 1500, games: 0 } }
+    activePlayers: [],    // Array of IDs currently selected for active match
+    activePlayersMap: {}, // { [groupId]: ['p1', 'p2', ...] }
     rules: {
         playerCount: 4,
         startPoints: 25000,
         returnPoints: 30000,
         uma: [10, 5, -5, -10],
-        roundingRule: 'round', // none, round, goju-chuni, truncate, ceil
+        roundingRule: 'rank-floor-ceil', // none, round, goju-chuni, truncate, ceil, rank-ceil-floor, rank-floor-ceil
         useYakitori: false,
         yakitoriPenalty: 10
     },
@@ -45,30 +48,91 @@ const UMA_PRESETS = {
 const Storage = {
     load() {
         try {
+            const groupsData = localStorage.getItem('mj_groups');
+            const currentGroupId = localStorage.getItem('mj_current_group_id');
             const playersData = localStorage.getItem('mj_players');
             const recordsData = localStorage.getItem('mj_records');
             const rulesData = localStorage.getItem('mj_rules');
+            const activePlayersMapData = localStorage.getItem('mj_active_players_map');
 
+            // 1. グループの読み込みと初期化
+            if (groupsData) {
+                state.groups = JSON.parse(groupsData);
+            }
+            if (!state.groups || state.groups.length === 0) {
+                state.groups = [
+                    { id: 'group_default', name: 'メイン卓', createdAt: Date.now() }
+                ];
+                this.saveGroups();
+            }
+
+            // 現在のグループID
+            if (currentGroupId && state.groups.some(g => g.id === currentGroupId)) {
+                state.currentGroupId = currentGroupId;
+            } else {
+                state.currentGroupId = state.groups[0].id;
+                this.saveCurrentGroupId();
+            }
+
+            // 2. プレイヤーの読み込みとマイグレーション
             if (playersData) {
                 state.players = JSON.parse(playersData);
+                // 既存プレイヤーにgroupIdがない場合は現在のデフォルトグループに割り当て
+                let updated = false;
+                state.players.forEach(p => {
+                    if (!p.groupId) {
+                        p.groupId = state.groups[0].id;
+                        updated = true;
+                    }
+                });
+                if (updated) this.savePlayers();
             } else {
-                // Default initial players
+                // 初期プレイヤー
+                const defaultGid = state.groups[0].id;
                 state.players = [
-                    { id: 'p1', name: 'プレイヤーA' },
-                    { id: 'p2', name: 'プレイヤーB' },
-                    { id: 'p3', name: 'プレイヤーC' },
-                    { id: 'p4', name: 'プレイヤーD' }
+                    { id: 'p1', name: 'プレイヤーA', groupId: defaultGid },
+                    { id: 'p2', name: 'プレイヤーB', groupId: defaultGid },
+                    { id: 'p3', name: 'プレイヤーC', groupId: defaultGid },
+                    { id: 'p4', name: 'プレイヤーD', groupId: defaultGid }
                 ];
                 this.savePlayers();
             }
 
+            // 3. レコードの読み込みとマイグレーション
             if (recordsData) {
                 state.gameRecords = JSON.parse(recordsData);
+                let recordsUpdated = false;
+                state.gameRecords.forEach(r => {
+                    if (!r.groupId) {
+                        r.groupId = state.groups[0].id;
+                        recordsUpdated = true;
+                    }
+                });
+                if (recordsUpdated) this.saveRecords();
             }
 
+            // 4. ルール読み込み
             if (rulesData) {
                 state.rules = JSON.parse(rulesData);
+                // 初期状態のデフォルトを「3,4位切り上げ、1,2位切り捨て」に更新
+                if (!state.rules.roundingRule || state.rules.roundingRule === 'round') {
+                    state.rules.roundingRule = 'rank-floor-ceil';
+                    this.saveRules();
+                }
+            } else {
+                state.rules.roundingRule = 'rank-floor-ceil';
+                this.saveRules();
             }
+
+            // 5. グループ別選択中プレイヤーの読み込み
+            if (activePlayersMapData) {
+                state.activePlayersMap = JSON.parse(activePlayersMapData);
+            } else {
+                state.activePlayersMap = {};
+            }
+
+            // 現在のグループのアクティブプレイヤーをセット
+            state.activePlayers = state.activePlayersMap[state.currentGroupId] || [];
 
             // ratingsも初期化時に読み込む
             this.loadRatings();
@@ -79,6 +143,18 @@ const Storage = {
         } catch (e) {
             console.error('LocalStorage load failed, resetting state:', e);
         }
+    },
+
+    saveGroups() {
+        localStorage.setItem('mj_groups', JSON.stringify(state.groups));
+    },
+
+    saveCurrentGroupId() {
+        localStorage.setItem('mj_current_group_id', state.currentGroupId);
+    },
+
+    saveActivePlayersMap() {
+        localStorage.setItem('mj_active_players_map', JSON.stringify(state.activePlayersMap));
     },
 
     savePlayers() {
@@ -281,6 +357,17 @@ const DOM = {
     useYakitori: document.getElementById('use-yakitori'),
     yakitoriPenalty: document.getElementById('yakitori-penalty'),
     yakitoriPointsGroup: document.getElementById('yakitori-points-group'),
+
+    // Group Management
+    groupTabsList: document.getElementById('group-tabs-list'),
+    addGroupBtn: document.getElementById('add-group-btn'),
+    activeGroupTitle: document.getElementById('active-group-title'),
+    renameGroupBtn: document.getElementById('rename-group-btn'),
+    deleteGroupBtn: document.getElementById('delete-group-btn'),
+    currentGroupBadge: document.getElementById('current-group-badge'),
+    gameActiveGroupName: document.getElementById('game-active-group-name'),
+
+    // Player Management
     newPlayerName: document.getElementById('new-player-name'),
     addPlayerBtn: document.getElementById('add-player-btn'),
     playerRoster: document.getElementById('player-roster'),
@@ -298,12 +385,14 @@ const DOM = {
     keypadBtns: document.querySelectorAll('.keypad-btn'),
 
     // History Panel
+    filterGroup: document.getElementById('filter-group'),
     filterYear: document.getElementById('filter-year'),
     filterMonth: document.getElementById('filter-month'),
     clearHistoryBtn: document.getElementById('clear-history-btn'),
     historyListContainer: document.getElementById('history-list-container'),
 
     // Stats Panel
+    statsGroup: document.getElementById('stats-group'),
     statsPeriod: document.getElementById('stats-period'),
     leaderboardContainer: document.getElementById('leaderboard-container'),
     exportTextArea: document.getElementById('export-text-area'),
@@ -319,10 +408,20 @@ const DOM = {
             state.rules.yakitoriPenalty = 10;
         }
 
+        // ルール設定の各要素の値を反映
+        if (this.ruleType) this.ruleType.value = state.rules.playerCount || 4;
+        if (this.startPoints) this.startPoints.value = state.rules.startPoints || 25000;
+        if (this.returnPoints) this.returnPoints.value = state.rules.returnPoints || 30000;
+        if (this.roundingRule) {
+            this.roundingRule.value = state.rules.roundingRule || 'rank-floor-ceil';
+        }
+
         this.setupTabNavigation();
         this.setupEventListeners();
+        this.renderGroupTabs();
         this.renderPlayerRoster();
         this.updateUmaPresets();
+        this.populateFilterGroups();
         this.renderHistory();
         this.renderStats();
 
@@ -344,9 +443,14 @@ const DOM = {
             });
 
             // Re-render contextual screens on tab switch
-            if (tabId === 'history') {
+            if (tabId === 'players') {
+                this.renderGroupTabs();
+                this.renderPlayerRoster();
+            } else if (tabId === 'history') {
+                this.populateFilterGroups();
                 this.renderHistory();
             } else if (tabId === 'stats') {
+                this.populateFilterGroups();
                 this.renderStats();
             } else if (tabId === 'game') {
                 this.renderActiveGameScreen();
@@ -469,24 +573,43 @@ const DOM = {
             this.validateScoresLive();
         });
 
-        // Add Player
+        // Group Management Action Listeners
+        if (this.addGroupBtn) {
+            this.addGroupBtn.addEventListener('click', () => this.createNewGroup());
+        }
+        if (this.renameGroupBtn) {
+            this.renameGroupBtn.addEventListener('click', () => this.renameCurrentGroup());
+        }
+        if (this.deleteGroupBtn) {
+            this.deleteGroupBtn.addEventListener('click', () => this.deleteCurrentGroup());
+        }
+        if (this.filterGroup) {
+            this.filterGroup.addEventListener('change', () => this.renderHistory());
+        }
+        if (this.statsGroup) {
+            this.statsGroup.addEventListener('change', () => this.renderStats());
+        }
+
+        // Add Player (Scoped to current group)
         const handleAddPlayer = () => {
             const name = this.newPlayerName.value.trim();
             if (!name) return;
 
-            // Check for duplicates
-            if (state.players.some(p => p.name === name)) {
-                alert('同じ名前のプレイヤーが既に存在します。');
+            // Check for duplicates in current group
+            if (state.players.some(p => p.groupId === state.currentGroupId && p.name === name)) {
+                alert('このグループ内に同じ名前のプレイヤーが既に存在します。');
                 return;
             }
 
             const newPlayer = {
                 id: 'p_' + Date.now(),
-                name: name
+                name: name,
+                groupId: state.currentGroupId
             };
             state.players.push(newPlayer);
             this.newPlayerName.value = '';
             this.renderPlayerRoster();
+            this.renderGroupTabs();
             Storage.savePlayers();
         };
         this.addPlayerBtn.addEventListener('click', handleAddPlayer);
@@ -496,9 +619,9 @@ const DOM = {
 
         // Start Session Button
         this.startSessionBtn.addEventListener('click', () => {
-            // Find active game number for the selected date
+            // Find active game number for the selected date within this group
             const date = this.gameDate.value;
-            const dailyGames = state.gameRecords.filter(r => r.date === date);
+            const dailyGames = state.gameRecords.filter(r => r.date === date && r.groupId === state.currentGroupId);
             state.activeGameNumber = dailyGames.length + 1;
 
             // Switch to entry screen
@@ -582,11 +705,28 @@ const DOM = {
 
         // Clear history button
         this.clearHistoryBtn.addEventListener('click', () => {
-            if (confirm('すべての対局データを削除しますか？この操作は取り消せません。')) {
-                state.gameRecords = [];
-                Storage.saveRecords();
-                this.renderHistory();
-                this.renderStats();
+            const filterMode = this.filterGroup ? this.filterGroup.value : 'current';
+            const curGroupObj = state.groups.find(g => g.id === state.currentGroupId);
+            const curGroupName = curGroupObj ? curGroupObj.name : '現在のグループ';
+
+            if (filterMode === 'all') {
+                if (confirm('【全グループ】のすべての対局履歴を消去しますか？\nこの操作は取り消せません。')) {
+                    state.gameRecords = [];
+                    Storage.saveRecords();
+                    this.renderHistory();
+                    this.renderStats();
+                }
+            } else {
+                const targetGid = filterMode === 'current' ? state.currentGroupId : filterMode;
+                const gObj = state.groups.find(g => g.id === targetGid);
+                const gName = gObj ? gObj.name : curGroupName;
+
+                if (confirm(`グループ「${gName}」の対局履歴のみ消去しますか？\n他のグループの履歴は保持されます。`)) {
+                    state.gameRecords = state.gameRecords.filter(r => r.groupId !== targetGid);
+                    Storage.saveRecords();
+                    this.renderHistory();
+                    this.renderStats();
+                }
             }
         });
 
@@ -603,7 +743,10 @@ const DOM = {
         // Export current data as JSON file
         this.exportJsonBtn.addEventListener('click', () => {
             const exportData = {
+                groups: state.groups,
+                currentGroupId: state.currentGroupId,
                 players: state.players,
+                activePlayersMap: state.activePlayersMap,
                 gameRecords: state.gameRecords,
                 rules: state.rules
             };
@@ -632,15 +775,26 @@ const DOM = {
             reader.onload = (ev) => {
                 try {
                     const data = JSON.parse(ev.target.result);
+                    if (data.groups && Array.isArray(data.groups) && data.groups.length > 0) {
+                        state.groups = data.groups;
+                        state.currentGroupId = data.currentGroupId || state.groups[0].id;
+                        Storage.saveGroups();
+                        Storage.saveCurrentGroupId();
+                    }
+                    if (data.activePlayersMap) {
+                        state.activePlayersMap = data.activePlayersMap;
+                        Storage.saveActivePlayersMap();
+                    }
                     if (data.players) {
                         state.players = data.players;
+                        // groupId補完
+                        const fallbackGid = state.groups[0]?.id || 'group_default';
+                        state.players.forEach(p => { if (!p.groupId) p.groupId = fallbackGid; });
                         Storage.savePlayers();
-                        this.renderPlayerRoster();
                     }
                     if (data.rules) {
                         state.rules = data.rules;
                         Storage.saveRules();
-                        // Update UI controls to reflect imported rules
                         this.ruleType.value = state.rules.playerCount;
                         this.startPoints.value = state.rules.startPoints;
                         this.returnPoints.value = state.rules.returnPoints;
@@ -652,10 +806,18 @@ const DOM = {
                     }
                     if (data.gameRecords) {
                         state.gameRecords = data.gameRecords;
+                        const fallbackGid = state.groups[0]?.id || 'group_default';
+                        state.gameRecords.forEach(r => { if (!r.groupId) r.groupId = fallbackGid; });
                         Storage.saveRecords();
-                        this.renderHistory();
-                        this.renderStats();
                     }
+
+                    // 復元後のUI同期
+                    state.activePlayers = state.activePlayersMap[state.currentGroupId] || [];
+                    this.renderGroupTabs();
+                    this.renderPlayerRoster();
+                    this.populateFilterGroups();
+                    this.renderHistory();
+                    this.renderStats();
                     alert('データのインポートが完了しました。');
                 } catch (err) {
                     console.error(err);
@@ -720,10 +882,276 @@ const DOM = {
         });
     },
 
+    // ==========================================
+    // GROUP MANAGEMENT METHODS
+    // ==========================================
+    renderGroupTabs() {
+        if (!this.groupTabsList) return;
+        this.groupTabsList.innerHTML = '';
+
+        state.groups.forEach(group => {
+            const tab = document.createElement('div');
+            const isActive = group.id === state.currentGroupId;
+            tab.className = `group-tab-item ${isActive ? 'active' : ''}`;
+
+            // このグループの登録人数をカウント
+            const memberCount = state.players.filter(p => p.groupId === group.id).length;
+
+            tab.innerHTML = `
+                <i class="fa-solid fa-layer-group"></i>
+                <span>${group.name}</span>
+                <span class="group-tab-badge">${memberCount}人</span>
+            `;
+
+            tab.addEventListener('click', () => {
+                if (group.id !== state.currentGroupId) {
+                    this.switchGroup(group.id);
+                }
+            });
+
+            this.groupTabsList.appendChild(tab);
+        });
+
+        // 現在のグループ情報バーを更新
+        const currentGroup = state.groups.find(g => g.id === state.currentGroupId) || state.groups[0];
+        if (currentGroup) {
+            if (this.activeGroupTitle) this.activeGroupTitle.textContent = currentGroup.name;
+            if (this.currentGroupBadge) this.currentGroupBadge.innerHTML = `<i class="fa-solid fa-tag"></i> ${currentGroup.name}`;
+            if (this.gameActiveGroupName) this.gameActiveGroupName.textContent = currentGroup.name;
+        }
+
+        // 削除ボタンの可否（1グループのみの場合は無効化/スタイル調整）
+        if (this.deleteGroupBtn) {
+            const isOnlyOne = state.groups.length <= 1;
+            this.deleteGroupBtn.disabled = isOnlyOne;
+            this.deleteGroupBtn.style.opacity = isOnlyOne ? '0.4' : '1';
+            this.deleteGroupBtn.style.cursor = isOnlyOne ? 'not-allowed' : 'pointer';
+        }
+    },
+
+    switchGroup(groupId) {
+        state.currentGroupId = groupId;
+        Storage.saveCurrentGroupId();
+
+        // 選択中プレイヤーをこのグループのものに復元
+        state.activePlayers = state.activePlayersMap[groupId] || [];
+
+        this.renderGroupTabs();
+        this.renderPlayerRoster();
+        this.updatePlayerSelectionSummary();
+        this.populateFilterGroups();
+
+        // スコア入力画面、履歴、成績統計が開いていれば再レンダリング
+        if (document.getElementById('game')?.classList.contains('active')) {
+            this.renderActiveGameScreen();
+        }
+        if (document.getElementById('history')?.classList.contains('active')) {
+            this.renderHistory();
+        }
+        if (document.getElementById('stats')?.classList.contains('active')) {
+            this.renderStats();
+        }
+    },
+
+    openGroupModal({ title, desc, initialValue = '', onSubmit }) {
+        const modal = document.getElementById('group-modal');
+        const modalTitle = document.getElementById('group-modal-title');
+        const modalDesc = document.getElementById('group-modal-desc');
+        const modalInput = document.getElementById('group-modal-input');
+        const modalError = document.getElementById('group-modal-error');
+        const submitBtn = document.getElementById('group-modal-submit-btn');
+        const cancelBtn = document.getElementById('group-modal-cancel-btn');
+        const closeBtn = document.getElementById('group-modal-close-btn');
+
+        if (!modal) return;
+
+        modalTitle.innerHTML = `<i class="fa-solid fa-layer-group text-gold"></i> ${title}`;
+        modalDesc.textContent = desc;
+        modalInput.value = initialValue;
+        modalError.style.display = 'none';
+        modalError.textContent = '';
+        modal.style.display = 'flex';
+
+        setTimeout(() => modalInput.focus(), 50);
+
+        let cleanup;
+
+        const closeModal = () => {
+            modal.style.display = 'none';
+            if (cleanup) cleanup();
+        };
+
+        const handleSubmit = () => {
+            const val = modalInput.value.trim();
+            if (!val) {
+                modalError.textContent = 'グループ名を入力してください。';
+                modalError.style.display = 'block';
+                return;
+            }
+            const error = onSubmit(val);
+            if (error) {
+                modalError.textContent = error;
+                modalError.style.display = 'block';
+                return;
+            }
+            closeModal();
+        };
+
+        const handleKeyDown = (e) => {
+            if (e.key === 'Enter') handleSubmit();
+            if (e.key === 'Escape') closeModal();
+        };
+
+        const handleOverlayClick = (e) => {
+            if (e.target === modal) closeModal();
+        };
+
+        cleanup = () => {
+            submitBtn.removeEventListener('click', handleSubmit);
+            cancelBtn.removeEventListener('click', closeModal);
+            closeBtn.removeEventListener('click', closeModal);
+            modalInput.removeEventListener('keydown', handleKeyDown);
+            modal.removeEventListener('click', handleOverlayClick);
+        };
+
+        submitBtn.addEventListener('click', handleSubmit);
+        cancelBtn.addEventListener('click', closeModal);
+        closeBtn.addEventListener('click', closeModal);
+        modalInput.addEventListener('keydown', handleKeyDown);
+        modal.addEventListener('click', handleOverlayClick);
+    },
+
+    createNewGroup() {
+        this.openGroupModal({
+            title: '新規グループ作成',
+            desc: '新しいグループ名を入力してください（例: 金曜麻雀会、サークルA、家族卓など）:',
+            initialValue: '',
+            onSubmit: (name) => {
+                if (state.groups.some(g => g.name === name)) {
+                    return '同名のグループが既に存在します。別の名前を入力してください。';
+                }
+                const newId = 'group_' + Date.now();
+                state.groups.push({
+                    id: newId,
+                    name: name,
+                    createdAt: Date.now()
+                });
+                Storage.saveGroups();
+                this.switchGroup(newId);
+                return null;
+            }
+        });
+    },
+
+    renameCurrentGroup() {
+        const currentGroup = state.groups.find(g => g.id === state.currentGroupId);
+        if (!currentGroup) return;
+
+        this.openGroupModal({
+            title: 'グループ名の変更',
+            desc: `グループ「${currentGroup.name}」の新しい名前を入力してください:`,
+            initialValue: currentGroup.name,
+            onSubmit: (name) => {
+                if (name !== currentGroup.name && state.groups.some(g => g.name === name)) {
+                    return '同名のグループが既に存在します。別の名前を入力してください。';
+                }
+                currentGroup.name = name;
+                Storage.saveGroups();
+                this.renderGroupTabs();
+                this.populateFilterGroups();
+                this.renderHistory();
+                this.renderStats();
+                return null;
+            }
+        });
+    },
+
+    deleteCurrentGroup() {
+        if (state.groups.length <= 1) {
+            alert('グループは最低1つ必要なため、最後のグループは削除できません。');
+            return;
+        }
+
+        const currentGroup = state.groups.find(g => g.id === state.currentGroupId);
+        if (!currentGroup) return;
+
+        const pCount = state.players.filter(p => p.groupId === currentGroup.id).length;
+        const rCount = state.gameRecords.filter(r => r.groupId === currentGroup.id).length;
+
+        const msg = `グループ「${currentGroup.name}」を削除しますか？\n\n【注意】\n・所属プレイヤー (${pCount}名)\n・過去の対局履歴 (${rCount}戦)\nも一緒に削除されます。この操作は取り消せません。`;
+        if (!confirm(msg)) return;
+
+        // 削除処理
+        const deletedId = currentGroup.id;
+        state.groups = state.groups.filter(g => g.id !== deletedId);
+        state.players = state.players.filter(p => p.groupId !== deletedId);
+        state.gameRecords = state.gameRecords.filter(r => r.groupId !== deletedId);
+        delete state.activePlayersMap[deletedId];
+
+        Storage.saveGroups();
+        Storage.savePlayers();
+        Storage.saveRecords();
+        Storage.saveActivePlayersMap();
+
+        // 最初のグループへ切り替え
+        this.switchGroup(state.groups[0].id);
+    },
+
+    populateFilterGroups() {
+        // 対局履歴と成績統計のグループ選択肢を構築
+        const currentGroup = state.groups.find(g => g.id === state.currentGroupId) || state.groups[0];
+
+        const buildOptions = (selectElement) => {
+            if (!selectElement) return;
+            const currentVal = selectElement.value || 'current';
+
+            selectElement.innerHTML = `
+                <option value="current">選択中: ${currentGroup ? currentGroup.name : 'グループ'}</option>
+                <option value="all">全グループ通算</option>
+            `;
+
+            if (state.groups.length > 1) {
+                const optGroup = document.createElement('optgroup');
+                optGroup.label = '個別グループ指定';
+                state.groups.forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = g.id;
+                    opt.textContent = `🏷️ ${g.name}`;
+                    optGroup.appendChild(opt);
+                });
+                selectElement.appendChild(optGroup);
+            }
+
+            // 以前の選択状態をできるだけ保持
+            if (Array.from(selectElement.options).some(o => o.value === currentVal)) {
+                selectElement.value = currentVal;
+            } else {
+                selectElement.value = 'current';
+            }
+        };
+
+        buildOptions(this.filterGroup);
+        buildOptions(this.statsGroup);
+    },
+
     renderPlayerRoster() {
         this.playerRoster.innerHTML = '';
 
-        state.players.forEach(p => {
+        const currentPlayers = state.players.filter(p => p.groupId === state.currentGroupId);
+
+        if (currentPlayers.length === 0) {
+            this.playerRoster.innerHTML = `
+                <div style="text-align: center; color: #8c9c96; padding: 1.5rem 0; width: 100%;">
+                    <i class="fa-solid fa-users" style="font-size: 2.5rem; margin-bottom: 0.5rem; opacity: 0.3;"></i>
+                    <p style="font-size: 0.9rem; margin-bottom: 0.25rem;">このグループにはまだプレイヤーが登録されていません。</p>
+                    <p style="font-size: 0.8rem; color: #64748b;">上の入力欄からプレイヤー名を入力して追加してください。</p>
+                </div>
+            `;
+            this.updatePlayerSelectionSummary();
+            return;
+        }
+
+        currentPlayers.forEach(p => {
             const item = document.createElement('div');
             item.className = 'roster-item';
 
@@ -751,6 +1179,9 @@ const DOM = {
                 } else {
                     state.activePlayers = state.activePlayers.filter(id => id !== p.id);
                 }
+                // グループごとに選択プレイヤーを記憶
+                state.activePlayersMap[state.currentGroupId] = [...state.activePlayers];
+                Storage.saveActivePlayersMap();
                 this.updatePlayerSelectionSummary();
             });
 
@@ -767,13 +1198,17 @@ const DOM = {
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'action-btn action-delete';
             deleteBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+            deleteBtn.title = 'プレイヤーを削除';
             deleteBtn.addEventListener('click', () => {
-                if (confirm(`本当にプレイヤー「${p.name}」を削除しますか？過去の対局履歴のスコアは削除されません。`)) {
+                if (confirm(`本当にプレイヤー「${p.name}」を削除しますか？\n過去の対局履歴のスコアは削除されません。`)) {
                     state.players = state.players.filter(item => item.id !== p.id);
                     state.activePlayers = state.activePlayers.filter(id => id !== p.id);
-                    this.renderPlayerRoster();
-                    this.updatePlayerSelectionSummary();
+                    state.activePlayersMap[state.currentGroupId] = [...state.activePlayers];
+                    Storage.saveActivePlayersMap();
                     Storage.savePlayers();
+                    this.renderPlayerRoster();
+                    this.renderGroupTabs();
+                    this.updatePlayerSelectionSummary();
                 }
             });
 
@@ -803,11 +1238,17 @@ const DOM = {
 
     renderActiveGameScreen() {
         const required = state.rules.playerCount;
+        const currentGroup = state.groups.find(g => g.id === state.currentGroupId) || state.groups[0] || { name: 'グループ' };
+        if (this.gameActiveGroupName) {
+            this.gameActiveGroupName.textContent = currentGroup.name;
+        }
+
         if (state.activePlayers.length !== required) {
             this.scoreEntriesContainer.innerHTML = `
                 <div style="text-align: center; color: #8c9c96; padding: 2rem 0;">
                     <i class="fa-solid fa-triangle-exclamation" style="font-size: 3rem; margin-bottom: 1rem; color: var(--accent-gold);"></i>
-                    <p>対局プレイヤーの選択が不十分です。まず「設定」タブから ${required} 名のプレイヤーを選択してください。</p>
+                    <p>グループ「<strong>${currentGroup.name}</strong>」の対局プレイヤー選択が不十分です。</p>
+                    <p style="font-size: 0.85rem; margin-top: 0.5rem; color: #94a3b8;">「プレイヤー・グループ」タブから ${required} 名のプレイヤーを選択してください。</p>
                 </div>
             `;
             this.saveRoundBtn.disabled = true;
@@ -819,7 +1260,7 @@ const DOM = {
         this.autofillBtn.disabled = false;
 
         const date = this.gameDate.value;
-        const dailyGames = state.gameRecords.filter(r => r.date === date);
+        const dailyGames = state.gameRecords.filter(r => r.date === date && r.groupId === state.currentGroupId);
         state.activeGameNumber = dailyGames.length + 1;
         this.activeGameTitle.textContent = `対局スコア入力 (第 ${state.activeGameNumber} 戦)`;
 
@@ -1028,11 +1469,12 @@ const DOM = {
         const calculated = calculateScores(scores, state.rules, yakitoriFlags);
 
         const date = this.gameDate.value;
-        const dailyGames = state.gameRecords.filter(r => r.date === date);
+        const dailyGames = state.gameRecords.filter(r => r.date === date && r.groupId === state.currentGroupId);
         const gameNumber = dailyGames.length + 1;
 
         const record = {
             id: 'game_' + Date.now(),
+            groupId: state.currentGroupId,
             date: date,
             gameNumber: gameNumber,
             playerCount: state.rules.playerCount,
@@ -1059,7 +1501,7 @@ const DOM = {
             input.value = '';
         });
 
-        const newDailyGames = state.gameRecords.filter(r => r.date === date);
+        const newDailyGames = state.gameRecords.filter(r => r.date === date && r.groupId === state.currentGroupId);
         state.activeGameNumber = newDailyGames.length + 1;
         this.activeGameTitle.textContent = `対局スコア入力 (第 ${state.activeGameNumber} 戦)`;
         this.validateScoresLive();
@@ -1145,6 +1587,74 @@ const DOM = {
         });
     },
 
+    calculateEloRatingsForRecords(records) {
+        // 時系列順にソート（古い対局から順にシミュレート）
+        const fourPlayerRecords = records
+            .filter(r => Number(r.playerCount) === 4)
+            .sort((a, b) => {
+                if (a.date !== b.date) return a.date.localeCompare(b.date);
+                return (a.gameNumber || 0) - (b.gameNumber || 0);
+            });
+
+        const calculatedRatings = {};
+
+        const getKFactor = (games) => {
+            if (games < 10) return 40;
+            if (games < 30) return 24;
+            return 16;
+        };
+
+        fourPlayerRecords.forEach(record => {
+            const results = record.results;
+            results.forEach(res => {
+                if (!calculatedRatings[res.playerId]) {
+                    calculatedRatings[res.playerId] = { elo: 1500, games: 0 };
+                }
+            });
+
+            const eloDeltas = {};
+            results.forEach(res => { eloDeltas[res.playerId] = 0; });
+
+            for (let i = 0; i < results.length; i++) {
+                for (let j = i + 1; j < results.length; j++) {
+                    const piId = results[i].playerId;
+                    const pjId = results[j].playerId;
+
+                    const eloI = calculatedRatings[piId].elo;
+                    const eloJ = calculatedRatings[pjId].elo;
+                    const gamesI = calculatedRatings[piId].games;
+                    const gamesJ = calculatedRatings[pjId].games;
+
+                    const kI = getKFactor(gamesI);
+                    const kJ = getKFactor(gamesJ);
+
+                    const expectedI = 1 / (1 + Math.pow(10, (eloJ - eloI) / 400));
+                    const expectedJ = 1 - expectedI;
+
+                    let actualI, actualJ;
+                    if (results[i].rank < results[j].rank) {
+                        actualI = 1; actualJ = 0;
+                    } else if (results[i].rank > results[j].rank) {
+                        actualI = 0; actualJ = 1;
+                    } else {
+                        actualI = 0.5; actualJ = 0.5;
+                    }
+
+                    eloDeltas[piId] += kI * (actualI - expectedI);
+                    eloDeltas[pjId] += kJ * (actualJ - expectedJ);
+                }
+            }
+
+            results.forEach(res => {
+                const id = res.playerId;
+                calculatedRatings[id].elo = Math.round((calculatedRatings[id].elo + eloDeltas[id]) * 10) / 10;
+                calculatedRatings[id].games += 1;
+            });
+        });
+
+        return calculatedRatings;
+    },
+
     renderHistory() {
         const container = this.historyListContainer;
         container.innerHTML = '';
@@ -1153,17 +1663,28 @@ const DOM = {
             container.innerHTML = `
                 <div style="text-align: center; color: #8c9c96; padding: 2rem 0;">
                     <i class="fa-solid fa-folder-open" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
-                    <p>対局データがありません。「設定」からプレイヤーを選んでスコアを入力してください。</p>
+                    <p>対局データがありません。「プレイヤー・グループ」からプレイヤーを選んでスコアを入力してください。</p>
                 </div>
             `;
             return;
         }
 
-        // Get unique years and months for filter dropdowns
+        // Apply group filter
+        let filterGroupVal = this.filterGroup ? this.filterGroup.value : 'current';
+        if (filterGroupVal === 'current') {
+            filterGroupVal = state.currentGroupId;
+        }
+
+        let filteredRecords = [...state.gameRecords];
+        if (filterGroupVal !== 'all') {
+            filteredRecords = filteredRecords.filter(r => r.groupId === filterGroupVal);
+        }
+
+        // Get unique years and months for filter dropdowns (based on group-filtered records)
         const years = new Set();
         const months = new Set();
 
-        state.gameRecords.forEach(r => {
+        filteredRecords.forEach(r => {
             const parts = r.date.split('-');
             if (parts[0]) years.add(parts[0]);
             if (parts[1]) months.add(parts[1]);
@@ -1186,8 +1707,7 @@ const DOM = {
         this.filterYear.value = currentYearFilter;
         this.filterMonth.value = currentMonthFilter;
 
-        // Apply filters to records
-        let filteredRecords = [...state.gameRecords];
+        // Apply year/month filters to records
         if (this.filterYear.value !== 'all') {
             filteredRecords = filteredRecords.filter(r => r.date.startsWith(this.filterYear.value));
         }
@@ -1214,7 +1734,7 @@ const DOM = {
             container.innerHTML = `
                 <div style="text-align: center; color: #8c9c96; padding: 2rem 0;">
                     <i class="fa-solid fa-filter" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
-                    <p>指定されたフィルターに一致するデータはありません。</p>
+                    <p>指定されたフィルターに一致する対局データはありません。</p>
                 </div>
             `;
             return;
@@ -1280,9 +1800,12 @@ const DOM = {
                 const row = document.createElement('div');
                 row.className = 'round-row';
 
+                const groupObj = state.groups.find(g => g.id === game.groupId);
+                const groupName = groupObj ? groupObj.name : 'メイン卓';
+
                 const num = document.createElement('div');
                 num.className = 'round-number';
-                num.textContent = `第${game.gameNumber}戦`;
+                num.innerHTML = `第${game.gameNumber}戦 <span class="history-group-tag">${groupName}</span>`;
 
                 const scoresGrid = document.createElement('div');
                 scoresGrid.className = 'round-scores-grid';
@@ -1357,6 +1880,19 @@ const DOM = {
             return;
         }
 
+        // Apply group filter
+        let statsGroupVal = this.statsGroup ? this.statsGroup.value : 'current';
+        if (statsGroupVal === 'current') {
+            statsGroupVal = state.currentGroupId;
+        }
+
+        let groupRecords = (statsGroupVal === 'all')
+            ? [...state.gameRecords]
+            : state.gameRecords.filter(r => r.groupId === statsGroupVal);
+
+        const currentGroupObj = state.groups.find(g => g.id === statsGroupVal);
+        const groupLabel = statsGroupVal === 'all' ? '全グループ合算' : (currentGroupObj ? currentGroupObj.name : 'グループ');
+
         // Apply selected period filter
         const period = this.statsPeriod.value;
         const now = new Date();
@@ -1364,26 +1900,30 @@ const DOM = {
         const currentMonth = (now.getMonth() + 1).toString().padStart(2, '0');
         const filterPrefix = currentYear + '-' + currentMonth;
 
-        let filtered = [...state.gameRecords];
-        let periodTitle = '通算成績';
+        let filtered = [...groupRecords];
+        let periodTitle = `【${groupLabel}】通算成績`;
 
         if (period === 'year') {
             filtered = filtered.filter(r => r.date.startsWith(currentYear));
-            periodTitle = `${currentYear}年度 成績`;
+            periodTitle = `【${groupLabel}】${currentYear}年度 成績`;
         } else if (period === 'month') {
             filtered = filtered.filter(r => r.date.startsWith(filterPrefix));
-            periodTitle = `${currentYear}年${currentMonth}月度 成績`;
+            periodTitle = `【${groupLabel}】${currentYear}年${currentMonth}月度 成績`;
         } else if (period === 'today') {
             const today = now.toISOString().split('T')[0];
             filtered = filtered.filter(r => r.date === today);
-            periodTitle = `${today} 成績`;
+            periodTitle = `【${groupLabel}】${today} 成績`;
         }
 
         // Aggregate statistics per player
         const playerStats = {};
 
-        // Initialize statistics for all known players
-        state.players.forEach(p => {
+        // 対象グループに所属するプレイヤー（全グループ合算時は全プレイヤー）で初期化
+        const candidatePlayers = (statsGroupVal === 'all')
+            ? state.players
+            : state.players.filter(p => p.groupId === statsGroupVal);
+
+        candidatePlayers.forEach(p => {
             playerStats[p.id] = {
                 id: p.id,
                 name: p.name,
@@ -1399,11 +1939,12 @@ const DOM = {
         // Sum up score results
         filtered.forEach(record => {
             record.results.forEach(res => {
-                // In case a player was deleted but records exist
+                // In case a player was deleted or belongs to other group but has records
                 if (!playerStats[res.playerId]) {
+                    const foundP = state.players.find(p => p.id === res.playerId);
                     playerStats[res.playerId] = {
                         id: res.playerId,
-                        name: 'Unknown Player',
+                        name: foundP ? foundP.name : 'Unknown Player',
                         totalNet: 0,
                         gamesCount: 0,
                         rankSum: 0,
@@ -1438,12 +1979,16 @@ const DOM = {
             container.innerHTML = `
                 <div style="text-align: center; color: #8c9c96; padding: 2rem 0;">
                     <i class="fa-solid fa-filter" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
-                    <p>この集計期間での対局記録がありません。</p>
+                    <p>${groupLabel}における指定期間の対局記録がありません。</p>
                 </div>
             `;
             this.exportTextArea.textContent = `${periodTitle}の対局データがありません。`;
+            PremiumFeatures.renderCharts([], []);
             return;
         }
+
+        // このグループ（または全グループ通算）の4人打ち対局データに基づいて動的Eloレーティングを算出
+        const dynamicRatings = this.calculateEloRatingsForRecords(groupRecords);
 
         // Render Leaderboard Cards
         sortedPlayers.forEach((stats, rankIndex) => {
@@ -1454,13 +1999,13 @@ const DOM = {
             const r2Percent = (stats.ranks[2] / stats.gamesCount) * 100;
             const r3Percent = (stats.ranks[3] / stats.gamesCount) * 100;
 
-            // 段位バッジ・称号バッジを取得
-            const ratingInfo = state.ratings[stats.id];
+            // 段位バッジ・称号バッジを取得（対象グループの対局母集団に基づく）
+            const ratingInfo = dynamicRatings[stats.id] || state.ratings[stats.id];
             const danInfo = PremiumFeatures.getDanTitle(
                 ratingInfo ? ratingInfo.elo : 1500,
                 ratingInfo ? ratingInfo.games : 0
             );
-            const titleInfo = PremiumFeatures.getTitleBadge(stats, state.gameRecords);
+            const titleInfo = PremiumFeatures.getTitleBadge(stats, groupRecords);
 
             const card = document.createElement('div');
             card.className = `leaderboard-card rank-${rank <= 3 ? rank : 'other'}`;

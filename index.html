@@ -21,6 +21,7 @@
         </div>
         <nav class="tab-navigation">
             <button class="tab-btn active" data-tab="setup"><i class="fa-solid fa-sliders"></i> 設定</button>
+            <button class="tab-btn" data-tab="players"><i class="fa-solid fa-users"></i> プレイヤー・グループ</button>
             <button class="tab-btn" data-tab="game"><i class="fa-solid fa-pen-to-square"></i> スコア入力</button>
             <button class="tab-btn" data-tab="history"><i class="fa-solid fa-history"></i> 対局履歴</button>
             <button class="tab-btn" data-tab="stats"><i class="fa-solid fa-chart-line"></i> 成績統計</button>
@@ -84,12 +85,12 @@
                         <label for="rounding-rule">端数処理（丸めルール）</label>
                         <select id="rounding-rule">
                             <option value="none">小数点そのまま保持 (100点＝0.1pt)</option>
-                            <option value="round" selected>四捨五入 (五入)</option>
+                            <option value="round">四捨五入 (五入)</option>
                             <option value="goju-chuni">五捨六入 (500点切り捨て、600点切り上げ)</option>
                             <option value="truncate">切り捨て (常に1,000点単位に丸め)</option>
                             <option value="ceil">切り上げ (常に1,000点単位に丸め)</option>
                             <option value="rank-ceil-floor">1・2位切り上げ、3・4位(※3人打ちは3位)切り捨て</option>
-                            <option value="rank-floor-ceil">3・4位(※3人打ちは3位)切り上げ、1・2位切り捨て</option>
+                            <option value="rank-floor-ceil" selected>3・4位(※3人打ちは3位)切り上げ、1・2位切り捨て</option>
                         </select>
                     </div>
 
@@ -105,31 +106,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Player Management Panel -->
-            <div class="panel">
-                <h2><i class="fa-solid fa-users text-gold"></i> プレイヤー登録・選択</h2>
-                <p style="font-size: 0.85rem; color: #8c9c96; margin: 0.5rem 0 1rem 0;">
-                    対局に参加するプレイヤーをチェックしてください。対局モードに合わせた人数（3人または4人）を選択する必要があります。
-                </p>
-                
-                <div class="form-group" style="display: flex; gap: 0.5rem;">
-                    <input type="text" id="new-player-name" placeholder="新しいプレイヤー名を入力..." maxlength="10">
-                    <button class="btn btn-primary" id="add-player-btn" style="width: auto; padding: 0.75rem 1.5rem;"><i class="fa-solid fa-user-plus"></i> 追加</button>
-                </div>
-
-                <div class="roster-container" id="player-roster">
-                    <!-- Loaded dynamically from localStorage -->
-                </div>
-
-                <div id="selection-summary" style="font-weight: 700; color: var(--accent-gold); margin-bottom: 1rem;">
-                    選択中: 0 / 4 名
-                </div>
-
-                <button class="btn btn-primary" id="start-session-btn" disabled>
-                    <i class="fa-solid fa-play"></i> 対局を開始する
-                </button>
             </div>
 
             <!-- Premium Settings Widget -->
@@ -155,11 +131,83 @@
             </div>
         </section>
 
-        <!-- 2. ACTIVE GAME ENTRY VIEW -->
+        <!-- 2. PLAYER & GROUP MANAGEMENT VIEW -->
+        <section id="players" class="view-panel">
+            <!-- Group Tabs Panel -->
+            <div class="panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem;">
+                    <h2><i class="fa-solid fa-layer-group text-gold"></i> グループ選択・管理</h2>
+                    <button class="btn btn-primary" id="add-group-btn" style="width: auto; padding: 0.5rem 1.2rem; font-size: 0.85rem;">
+                        <i class="fa-solid fa-plus"></i> 新規グループ作成
+                    </button>
+                </div>
+                <p style="font-size: 0.85rem; color: #8c9c96; margin-bottom: 1rem;">
+                    サークルやセットごとにタブを作成・切り替えできます。対局成績やレーティングもグループ別に独立して集計されます。
+                </p>
+
+                <!-- Group Tabs List -->
+                <div class="group-tabs-scroll-wrapper">
+                    <div class="group-tabs-list" id="group-tabs-list">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- Active Group Action Bar -->
+                <div class="active-group-toolbar" id="active-group-toolbar">
+                    <div class="active-group-info">
+                        <span style="color: #8c9c96; font-size: 0.85rem;">現在選択中のグループ:</span>
+                        <span class="active-group-highlight" id="active-group-title">メイン卓</span>
+                    </div>
+                    <div class="active-group-actions">
+                        <button class="btn btn-secondary btn-sm" id="rename-group-btn" title="グループ名を変更">
+                            <i class="fa-solid fa-pen"></i> 名前変更
+                        </button>
+                        <button class="btn btn-secondary btn-sm btn-danger" id="delete-group-btn" title="グループを削除">
+                            <i class="fa-solid fa-trash-can"></i> 削除
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Player Management Panel for Current Group -->
+            <div class="panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <h2><i class="fa-solid fa-users text-gold"></i> プレイヤー登録・対局選択</h2>
+                    <span class="current-group-badge" id="current-group-badge"><i class="fa-solid fa-tag"></i> メイン卓</span>
+                </div>
+                <p style="font-size: 0.85rem; color: #8c9c96; margin: 0.5rem 0 1rem 0;">
+                    このグループで対局に参加するプレイヤーをチェックしてください。対局モードに合わせた人数（3人または4人）を選択する必要があります。
+                </p>
+                
+                <div class="form-group" style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="new-player-name" placeholder="新しいプレイヤー名を入力..." maxlength="10">
+                    <button class="btn btn-primary" id="add-player-btn" style="width: auto; padding: 0.75rem 1.5rem; white-space: nowrap;"><i class="fa-solid fa-user-plus"></i> 追加</button>
+                </div>
+
+                <div class="roster-container" id="player-roster">
+                    <!-- Loaded dynamically from localStorage -->
+                </div>
+
+                <div id="selection-summary" style="font-weight: 700; color: var(--accent-gold); margin-bottom: 1rem;">
+                    選択中: 0 / 4 名
+                </div>
+
+                <button class="btn btn-primary" id="start-session-btn" disabled>
+                    <i class="fa-solid fa-play"></i> 対局を開始する
+                </button>
+            </div>
+        </section>
+
+        <!-- 3. ACTIVE GAME ENTRY VIEW -->
         <section id="game" class="view-panel">
             <div class="panel">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem;">
-                    <h2 id="active-game-title">対局スコア入力 (第1戦)</h2>
+                    <div>
+                        <h2 id="active-game-title" style="margin-bottom: 0.25rem;">対局スコア入力 (第1戦)</h2>
+                        <div class="game-group-indicator" id="game-group-indicator">
+                            <i class="fa-solid fa-layer-group text-gold"></i> グループ: <strong id="game-active-group-name">メイン卓</strong>
+                        </div>
+                    </div>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <label for="game-date" style="margin: 0; white-space: nowrap;">日付:</label>
                         <input type="date" id="game-date" style="padding: 0.4rem 0.8rem; width: auto; font-size: 0.9rem;">
@@ -234,6 +282,9 @@
                 
                 <!-- History Filters -->
                 <div class="history-filter-panel">
+                    <select id="filter-group">
+                        <!-- Populated dynamically via JS -->
+                    </select>
                     <select id="filter-year">
                         <option value="all">すべての年</option>
                     </select>
@@ -241,7 +292,7 @@
                         <option value="all">すべての月</option>
                     </select>
                     <button class="btn btn-secondary" id="clear-history-btn" style="width: auto; padding: 0.6rem 1rem;">
-                        <i class="fa-solid fa-trash"></i> 全履歴消去
+                        <i class="fa-solid fa-trash"></i> 履歴消去
                     </button>
                 </div>
 
@@ -304,8 +355,11 @@
                 <h2><i class="fa-solid fa-chart-line text-gold"></i> 成績統計・リーダーボード</h2>
                 <br>
                 
-                <!-- Period Selector -->
+                <!-- Period & Group Selector -->
                 <div class="history-filter-panel">
+                    <select id="stats-group">
+                        <!-- Populated dynamically via JS -->
+                    </select>
                     <select id="stats-period">
                         <option value="all" selected>通算成績</option>
                         <option value="year">今年度成績</option>
@@ -440,6 +494,29 @@
         </section>
     </main>
 
+    <!-- Group Management Modal (Create / Rename) -->
+    <div id="group-modal" class="custom-modal-overlay" style="display: none;">
+        <div class="custom-modal-card">
+            <div class="custom-modal-header">
+                <h3 id="group-modal-title"><i class="fa-solid fa-layer-group text-gold"></i> 新規グループ作成</h3>
+                <button class="custom-modal-close" id="group-modal-close-btn">&times;</button>
+            </div>
+            <div class="custom-modal-body">
+                <p id="group-modal-desc" style="font-size: 0.85rem; color: #8c9c96; margin-bottom: 0.75rem;">
+                    グループ名を入力してください（例: 金曜麻雀会、サークルA、家族卓など）
+                </p>
+                <div class="form-group" style="margin-bottom: 0.5rem;">
+                    <input type="text" id="group-modal-input" placeholder="グループ名..." maxlength="20" style="font-size: 1rem; width: 100%;">
+                </div>
+                <div id="group-modal-error" style="color: var(--accent-red); font-size: 0.85rem; margin-top: 0.25rem; display: none;"></div>
+            </div>
+            <div class="custom-modal-footer">
+                <button type="button" class="btn btn-secondary" id="group-modal-cancel-btn" style="width: auto; padding: 0.6rem 1.2rem;">キャンセル</button>
+                <button type="button" class="btn btn-primary" id="group-modal-submit-btn" style="width: auto; padding: 0.6rem 1.5rem;">確定する</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden element for generating share card image -->
     <div id="share-card-wrapper" style="position: absolute; left: -9999px; top: -9999px; width: 450px; padding: 1rem; background-color: var(--bg-primary);">
         <div id="share-card-content" class="panel">
@@ -453,9 +530,13 @@
             <i class="fa-solid fa-sliders"></i>
             <span>設定</span>
         </button>
+        <button class="mobile-nav-btn" data-tab="players">
+            <i class="fa-solid fa-users"></i>
+            <span>メンバー</span>
+        </button>
         <button class="mobile-nav-btn" data-tab="game">
             <i class="fa-solid fa-pen-to-square"></i>
-            <span>スコア入力</span>
+            <span>入力</span>
         </button>
         <button class="mobile-nav-btn" data-tab="history">
             <i class="fa-solid fa-history"></i>
