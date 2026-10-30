@@ -1429,6 +1429,38 @@ input:focus, select:focus {
     gap: 0.5rem;
 }
 
+.premium-password-wrapper {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.premium-password-wrapper .premium-password-input {
+    width: 100%;
+    padding-right: 2.4rem;
+}
+
+.premium-pwd-toggle-btn {
+    position: absolute;
+    right: 0.6rem;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.25rem 0.4rem;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, transform 0.1s;
+    user-select: none;
+}
+.premium-pwd-toggle-btn:hover {
+    color: var(--accent-gold);
+    transform: scale(1.1);
+}
+
 .premium-password-input {
     flex: 1;
     background: rgba(0, 0, 0, 0.6);

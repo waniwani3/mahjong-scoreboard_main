@@ -119,8 +119,11 @@
                 <p style="font-size: 0.85rem; color: #8c9c96; margin-bottom: 1rem;">
                     プレミアム機能（グラフ分析・自動称号・段位レーティング）の有効化状態を管理します。
                 </p>
-                <div id="setup-premium-locked-actions" style="display: flex; gap: 0.5rem; align-items: center;">
-                    <input type="password" id="setup-premium-password" class="premium-password-input" placeholder="パスワードを入力" style="padding: 0.5rem 1rem; height: 38px;">
+                <div id="setup-premium-locked-actions" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <div class="premium-password-wrapper" style="max-width: 280px; flex: 1;">
+                        <input type="password" id="setup-premium-password" class="premium-password-input" placeholder="パスワードを入力" style="padding: 0.5rem 2.2rem 0.5rem 1rem; height: 38px;">
+                        <button type="button" class="premium-pwd-toggle-btn" data-target="setup-premium-password" title="パスワードを表示/非表示" aria-label="パスワードを表示/非表示"><i class="fa-solid fa-eye"></i></button>
+                    </div>
                     <button id="setup-premium-unlock-btn" class="btn btn-primary" style="width: auto; padding: 0.5rem 1.5rem; font-size: 0.9rem; height: 38px; white-space: nowrap;">有効化</button>
                 </div>
                 <div id="setup-premium-unlocked-actions" style="display: none; gap: 0.5rem; align-items: center; justify-content: space-between;">
@@ -323,7 +326,10 @@
                             <i class="fa-solid fa-file-invoice"></i> Noteでパスワードを確認する
                         </a>
                         <div class="premium-input-row">
-                            <input type="password" id="premium-password" class="premium-password-input" placeholder="パスワードを入力">
+                            <div class="premium-password-wrapper">
+                                <input type="password" id="premium-password" class="premium-password-input" placeholder="パスワードを入力">
+                                <button type="button" class="premium-pwd-toggle-btn" data-target="premium-password" title="パスワードを表示/非表示" aria-label="パスワードを表示/非表示"><i class="fa-solid fa-eye"></i></button>
+                            </div>
                             <button id="premium-unlock-btn" class="premium-submit-btn">解除</button>
                         </div>
                         <div id="premium-error-msg" class="premium-error-msg"></div>

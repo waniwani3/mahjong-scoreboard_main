@@ -2129,32 +2129,56 @@ const DOM = {
     // PREMIUM LOCK SYSTEM LOGIC
     // ==========================================
     initPremium() {
-        const PREMIUM_HASH = "01ddac116b660a924b4808dad77e15c8e34d302629a3a29b93fbe7f87c9e4011"; // SHA-256 for "mj-premium-2026"
+        // パスワード照合（file:// でも動作するシンプルな方式）
+        const PREMIUM_ENCODED = btoa('mj-premium-2026'); // "bWotcHJlbWl1bS0yMDI2"
         const NOTE_ARTICLE_URL = "https://note.com/_waniwani3/n/nbb6c554f7ff0";
 
-        // Helper to hash password
-        const sha256 = async (message) => {
-            const msgBuffer = new TextEncoder().encode(message);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        // パスワード入力の正規化（全角英数・全角ハイフン・長音・余分な空白・大文字小文字を吸収）
+        const normalizePassword = (input) => {
+            if (!input) return '';
+            return String(input)
+                .trim()
+                .replace(/[\s\u3000]+/g, '') // 全角・半角スペース除去
+                .replace(/[！-～]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)) // 全角英数→半角
+                .replace(/[ーｰ－‐―–—]/g, '-') // 全角ハイフン・長音→半角ハイフン
+                .toLowerCase();
         };
 
-        const handleUnlock = async (pwdInputEl, errEl) => {
-            const password = pwdInputEl.value.trim();
-            if (!password) return;
+        const handleUnlock = (pwdInputEl, errEl) => {
+            const raw = pwdInputEl.value;
+            const normalized = normalizePassword(raw);
+            if (!normalized) {
+                errEl.style.color = 'var(--accent-red)';
+                errEl.textContent = 'パスワードを入力してください。';
+                pwdInputEl.focus();
+                return;
+            }
 
+            errEl.style.color = 'var(--text-secondary)';
             errEl.textContent = '検証中...';
-            const hash = await sha256(password);
 
-            if (hash === PREMIUM_HASH) {
+            // btoa による照合（全環境で動作）
+            let encoded = '';
+            try {
+                encoded = btoa(normalized);
+            } catch(e) {
+                encoded = '';
+            }
+
+            const isMatch = (encoded === PREMIUM_ENCODED);
+
+            if (isMatch) {
                 state.isPremiumUnlocked = true;
                 Storage.savePremium();
-                errEl.textContent = '';
+                errEl.style.color = 'var(--accent-green)';
+                errEl.textContent = '✨ プレミアム機能を有効化しました！';
                 pwdInputEl.value = '';
-                this.updatePremiumUI();
-                this.renderStats();
+                setTimeout(() => {
+                    this.updatePremiumUI();
+                    this.renderStats();
+                }, 400);
             } else {
+                errEl.style.color = 'var(--accent-red)';
                 errEl.textContent = 'パスワードが正しくありません。';
                 pwdInputEl.classList.add('shake-animation');
                 setTimeout(() => {
@@ -2162,6 +2186,29 @@ const DOM = {
                 }, 400);
             }
         };
+
+        // パスワード表示/非表示（目のアイコン）トグル
+        document.querySelectorAll('.premium-pwd-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const targetId = btn.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                if (!input) return;
+                const isNowPassword = (input.type === 'password');
+                input.type = isNowPassword ? 'text' : 'password';
+                const icon = btn.querySelector('i');
+                if (icon) {
+                    if (isNowPassword) {
+                        icon.className = 'fa-solid fa-eye-slash';
+                    } else {
+                        icon.className = 'fa-solid fa-eye';
+                    }
+                }
+                input.focus();
+            });
+        });
+
 
         // 1. Stats Tab Lock Overlay
         const unlockBtn = document.getElementById('premium-unlock-btn');
