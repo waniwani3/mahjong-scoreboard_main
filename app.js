@@ -1,4 +1,4 @@
-// ==========================================
+﻿// ==========================================
 // MAHJONG SCOREBOOK - CORE ENGINE & STATE
 // ==========================================
 
@@ -137,8 +137,9 @@ const Storage = {
             // ratingsも初期化時に読み込む
             this.loadRatings();
 
-            // プレミアム有効化状態の読み込み
-            state.isPremiumUnlocked = localStorage.getItem('mj_premium_unlocked') === 'true';
+
+            // プレミアム機能は常時解放（パスワード不要）
+            state.isPremiumUnlocked = true;
 
         } catch (e) {
             console.error('LocalStorage load failed, resetting state:', e);
@@ -338,6 +339,16 @@ function roundPoint(val, rule) {
 // ==========================================
 
 const DOM = {
+    // Utility
+    escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
     // Navigation Tabs
     tabs: document.querySelectorAll('[data-tab]'),
     panels: document.querySelectorAll('.view-panel'),
@@ -2025,6 +2036,8 @@ const DOM = {
             nameSpan.textContent = stats.name;
             nameRow.appendChild(nameSpan);
 
+
+
             // 段位バッジ（Eloデータある場合のみ）
             if (ratingInfo) {
                 const danBadge = document.createElement('span');
@@ -2068,6 +2081,7 @@ const DOM = {
             }
             nameRow.appendChild(titleBadge);
 
+
             const yakitoriRate = stats.yakitoriCount ? ((stats.yakitoriCount / stats.gamesCount) * 100).toFixed(1) : '0.0';
             const tobiRate = stats.tobiCount ? ((stats.tobiCount / stats.gamesCount) * 100).toFixed(1) : '0.0';
             const statsRow = document.createElement('div');
@@ -2076,12 +2090,13 @@ const DOM = {
                 <span>対局数: <strong>${stats.gamesCount}</strong> 半荘</span>
                 <span>平均順位: <strong>${avgRank}</strong> 位</span>
                 <span>1位率: <strong style="color:var(--color-rank-1)">${r1Percent.toFixed(1)}%</strong></span>
-                <span>2位率: <strong style="color:var(--color-rank-2)">${state.isPremiumUnlocked ? r2Percent.toFixed(1) + '%' : '🔒'}</strong></span>
-                <span>3位率: <strong style="color:var(--color-rank-3)">${state.isPremiumUnlocked ? r3Percent.toFixed(1) + '%' : '🔒'}</strong></span>
+                <span>2位率: <strong style="color:var(--color-rank-2)">${r2Percent.toFixed(1)}%</strong></span>
+                <span>3位率: <strong style="color:var(--color-rank-3)">${r3Percent.toFixed(1)}%</strong></span>
                 <span>ラス率: <strong style="color:var(--accent-red)">${r4Percent.toFixed(1)}%</strong></span>
-                <span>焼き鳥率: <strong>${state.isPremiumUnlocked ? yakitoriRate + '%' : '🔒'}</strong> ${state.isPremiumUnlocked ? `(<strong>${stats.yakitoriCount || 0}</strong>回)` : ''}</span>
-                <span>飛び率: <strong>${state.isPremiumUnlocked ? tobiRate + '%' : '🔒'}</strong> ${state.isPremiumUnlocked ? `(<strong>${stats.tobiCount || 0}</strong>回)` : ''}</span>
-                ${ratingInfo ? `<span>Elo: <strong style="color:var(--accent-gold)">${state.isPremiumUnlocked ? ratingInfo.elo : '🔒'}</strong></span>` : ''}
+                <span>焼き鳥率: <strong>${yakitoriRate}%</strong> (<strong>${stats.yakitoriCount || 0}</strong>回)</span>
+                <span>飛び率: <strong>${tobiRate}%</strong> (<strong>${stats.tobiCount || 0}</strong>回)</span>
+                ${ratingInfo ? `<span>Elo: <strong style="color:var(--accent-gold)">${ratingInfo.elo}</strong></span>` : ''}
+
             `;
 
             // Visual bar showing ratios of 1st, 2nd, 3rd, 4th place
@@ -2121,14 +2136,20 @@ const DOM = {
 
         // Generate text report to share
         this.generateShareableReport(periodTitle, sortedPlayers);
-        // グラフ描画（PremiumFeaturesへ委譲）
+
+        // グラフ描画（常時有効）
         PremiumFeatures.renderCharts(sortedPlayers, filtered);
     },
 
     // ==========================================
-    // PREMIUM LOCK SYSTEM LOGIC
+    // PREMIUM LOCK SYSTEM LOGIC (常時解放・パスワード不要)
     // ==========================================
     initPremium() {
+        // プレミアム機能は常時解放（パスワード認証スキップ）
+        state.isPremiumUnlocked = true;
+        this.updatePremiumUI();
+
+        /* --- 認証・パスワードロジック（一時マスク / 必要に応じて復元可能） ---
         // パスワード照合（file:// でも動作するシンプルな方式）
         const PREMIUM_ENCODED = btoa('mj-premium-2026'); // "bWotcHJlbWl1bS0yMDI2"
         const NOTE_ARTICLE_URL = "https://note.com/_waniwani3/n/nbb6c554f7ff0";
@@ -2244,7 +2265,7 @@ const DOM = {
         if (setupLockBtn) {
             setupLockBtn.addEventListener('click', () => {
                 if (confirm('プレミアム機能を再びロックしますか？（動作確認用）')) {
-                    state.isPremiumUnlocked = false;
+                    state.isPremiumUnlocked = true;
                     Storage.savePremium();
                     this.updatePremiumUI();
                     this.renderStats();
@@ -2252,52 +2273,21 @@ const DOM = {
             });
         }
 
-        this.updatePremiumUI();
+        */
     },
 
     updatePremiumUI() {
-        const isUnlocked = state.isPremiumUnlocked;
+        const widget = document.querySelector('.premium-widget');
+        if (widget) widget.style.display = 'none';
 
-        // Stats Tab Lock Overlay
-        const lockOverlay = document.getElementById('premium-lock-overlay');
-        const lockedContent = document.getElementById('premium-locked-content');
         const chartPanel = document.getElementById('chart-panel');
+        if (chartPanel) chartPanel.classList.remove('premium-locked-container');
 
-        if (lockOverlay && lockedContent) {
-            if (isUnlocked) {
-                lockOverlay.style.display = 'none';
-                lockedContent.classList.remove('premium-blurred');
-                if (chartPanel) chartPanel.classList.remove('premium-locked-container');
-            } else {
-                lockOverlay.style.display = 'flex';
-                lockedContent.classList.add('premium-blurred');
-                if (chartPanel) chartPanel.classList.add('premium-locked-container');
-            }
-        }
+        const lockOverlay = document.getElementById('premium-lock-overlay');
+        if (lockOverlay) lockOverlay.style.display = 'none';
 
-        // Setup Tab Widget
-        const statusBadge = document.getElementById('setup-premium-status');
-        const lockedActions = document.getElementById('setup-premium-locked-actions');
-        const unlockedActions = document.getElementById('setup-premium-unlocked-actions');
-        const setupErrorMsg = document.getElementById('setup-premium-error-msg');
-        const statsErrorMsg = document.getElementById('premium-error-msg');
-
-        if (statusBadge && lockedActions && unlockedActions) {
-            if (setupErrorMsg) setupErrorMsg.textContent = '';
-            if (statsErrorMsg) statsErrorMsg.textContent = '';
-
-            if (isUnlocked) {
-                statusBadge.textContent = '有効化済み';
-                statusBadge.className = 'premium-status-badge unlocked';
-                lockedActions.style.display = 'none';
-                unlockedActions.style.display = 'flex';
-            } else {
-                statusBadge.textContent = '未有効化';
-                statusBadge.className = 'premium-status-badge locked';
-                lockedActions.style.display = 'flex';
-                unlockedActions.style.display = 'none';
-            }
-        }
+        const lockedContent = document.getElementById('premium-locked-content');
+        if (lockedContent) lockedContent.classList.remove('premium-blurred');
     },
 
     generateShareableReport(title, playersList) {

@@ -108,8 +108,8 @@
                 </div>
             </div>
 
-            <!-- Premium Settings Widget -->
-            <div class="premium-widget">
+            <!-- Premium Settings Widget (一時マスク) -->
+            <div class="premium-widget" style="display: none !important;">
                 <div class="premium-widget-header">
                     <div class="premium-widget-title">
                         <i class="fa-solid fa-crown text-gold"></i> プレミアム設定
@@ -313,11 +313,11 @@
         <!-- 4. STATS VIEW -->
         <section id="stats" class="view-panel">
             <!-- Graph Panel (NEW) -->
-            <div id="chart-panel" class="panel premium-locked-container">
+            <div id="chart-panel" class="panel">
                 <h2><i class="fa-solid fa-chart-pie text-gold"></i> グラフ分析</h2>
                 
                 <!-- Premium Lock Overlay -->
-                <div id="premium-lock-overlay" class="premium-lock-overlay">
+                <div id="premium-lock-overlay" class="premium-lock-overlay" style="display: none !important;">
                     <div class="premium-lock-icon"><i class="fa-solid fa-lock"></i></div>
                     <h3 class="premium-title">プレミアム機能</h3>
                     <p class="premium-desc">「グラフ分析」「自動称号」「段位レーティング」を開放するには、Noteでパスワードを取得して入力してください。</p>
@@ -336,7 +336,7 @@
                     </div>
                 </div>
 
-                <div id="premium-locked-content" class="premium-blurred">
+                <div id="premium-locked-content">
                     <div class="tab-navigation chart-tabs" style="margin-bottom: 1.5rem;">
                         <button class="tab-btn active" data-chart-tab="rank-chart-container">順位推移</button>
                         <button class="tab-btn" data-chart-tab="avg-rank-chart-container">平均順位</button>

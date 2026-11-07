@@ -1835,3 +1835,13 @@ input:focus, select:focus {
     margin-top: 0.5rem;
 }
 
+
+/* ==========================================
+   プレミアム認証UI一時無効化（常時解放対応）
+   ========================================== */
+.premium-widget,
+#premium-lock-overlay,
+.elo-badge-locked,
+.title-badge-locked {
+    display: none !important;
+}
